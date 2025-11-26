@@ -52,7 +52,11 @@ def mock_scheduled_event(mock_guild):
     event.guild = mock_guild
     event.start_time = discord.utils.utcnow() + timedelta(hours=1)
     event.end_time = discord.utils.utcnow() + timedelta(hours=2)
-    event.subscribers = AsyncMock()
+    # users() should return an async iterator, not a coroutine
+    async def empty_users():
+        if False:
+            yield
+    event.users = lambda: empty_users()
     return event
 
 

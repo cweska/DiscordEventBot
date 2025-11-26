@@ -34,7 +34,7 @@ class EventHandler:
         """
         try:
             participants = []
-            async for user in event.subscribers():
+            async for user in event.users():
                 participants.append(user)
             return participants
         except Exception as e:
@@ -59,10 +59,10 @@ class EventHandler:
             # Get initial participants
             participants = await self.get_event_participants(event)
             
-            # Create calendar event if calendar manager is available
+            # Generate calendar link if calendar manager is available
             calendar_link = None
             if self.calendar_manager:
-                calendar_link = await self.calendar_manager.create_calendar_event(event)
+                calendar_link = self.calendar_manager.generate_calendar_link(event)
             
             # Create forum post
             thread = await self.forum_manager.create_forum_post(event, participants, calendar_link)
@@ -94,10 +94,10 @@ class EventHandler:
             # Get current participants
             participants = await self.get_event_participants(event)
             
-            # Update calendar event if calendar manager is available
+            # Regenerate calendar link if calendar manager is available
             calendar_link = None
             if self.calendar_manager:
-                calendar_link = await self.calendar_manager.update_calendar_event(event)
+                calendar_link = self.calendar_manager.generate_calendar_link_for_update(event)
             
             # Update forum post
             await self.forum_manager.update_forum_post(event, participants, calendar_link)
@@ -121,10 +121,6 @@ class EventHandler:
         """
         try:
             logger.info(f"Event deleted: {event.name} (ID: {event.id})")
-            
-            # Delete calendar event if calendar manager is available
-            if self.calendar_manager:
-                await self.calendar_manager.delete_calendar_event(event.id)
             
             # Archive immediately
             self.archive_scheduler.archive_immediately(

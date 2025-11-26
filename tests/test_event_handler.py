@@ -10,13 +10,13 @@ async def test_get_event_participants_success(mock_scheduled_event, sample_parti
     """Test getting event participants successfully."""
     handler = EventHandler(MagicMock(), MagicMock())
     
-    # Mock the subscribers iterator - make it an async iterator
-    async def subscribers_generator():
+    # Mock the users iterator - make it an async iterator
+    async def users_generator():
         for participant in sample_participants:
             yield participant
     
-    # Set up the async iterator properly - subscribers() should return the generator
-    mock_scheduled_event.subscribers = lambda: subscribers_generator()
+    # Set up the async iterator properly - users() should return the generator
+    mock_scheduled_event.users = lambda: users_generator()
     
     result = await handler.get_event_participants(mock_scheduled_event)
     
@@ -29,11 +29,11 @@ async def test_get_event_participants_empty(mock_scheduled_event):
     """Test getting participants when event has none."""
     handler = EventHandler(MagicMock(), MagicMock())
     
-    async def empty_subscribers():
+    async def empty_users():
         if False:
             yield
     
-    mock_scheduled_event.subscribers = lambda: empty_subscribers()
+    mock_scheduled_event.users = lambda: empty_users()
     
     result = await handler.get_event_participants(mock_scheduled_event)
     
@@ -45,10 +45,10 @@ async def test_get_event_participants_error(mock_scheduled_event):
     """Test handling error when getting participants."""
     handler = EventHandler(MagicMock(), MagicMock())
     
-    def error_subscribers():
+    def error_users():
         raise Exception("API Error")
     
-    mock_scheduled_event.subscribers = error_subscribers
+    mock_scheduled_event.users = error_users
     
     result = await handler.get_event_participants(mock_scheduled_event)
     
@@ -64,18 +64,19 @@ async def test_on_scheduled_event_create_success(mock_scheduled_event, sample_pa
     handler = EventHandler(forum_manager, archive_scheduler, calendar_manager)
     
     # Mock getting participants
-    async def subscribers_generator():
+    async def users_generator():
         for participant in sample_participants:
             yield participant
     
-    mock_scheduled_event.subscribers = lambda: subscribers_generator()
+    mock_scheduled_event.users = lambda: users_generator()
     
+    forum_manager.get_thread = MagicMock(return_value=None)  # No existing thread
     forum_manager.create_forum_post = AsyncMock(return_value=mock_thread)
-    calendar_manager.create_calendar_event = AsyncMock(return_value="https://calendar.google.com/link")
+    calendar_manager.generate_calendar_link = MagicMock(return_value="https://calendar.google.com/link")
     
     await handler.on_scheduled_event_create(mock_scheduled_event)
     
-    calendar_manager.create_calendar_event.assert_called_once_with(mock_scheduled_event)
+    calendar_manager.generate_calendar_link.assert_called_once_with(mock_scheduled_event)
     forum_manager.create_forum_post.assert_called_once_with(
         mock_scheduled_event,
         sample_participants,
@@ -91,12 +92,13 @@ async def test_on_scheduled_event_create_without_calendar(mock_scheduled_event, 
     archive_scheduler = MagicMock()
     handler = EventHandler(forum_manager, archive_scheduler, None)
     
-    async def subscribers_generator():
+    async def users_generator():
         for participant in sample_participants:
             yield participant
     
-    mock_scheduled_event.subscribers = lambda: subscribers_generator()
+    mock_scheduled_event.users = lambda: users_generator()
     
+    forum_manager.get_thread = MagicMock(return_value=None)  # No existing thread
     forum_manager.create_forum_post = AsyncMock(return_value=mock_thread)
     
     await handler.on_scheduled_event_create(mock_scheduled_event)
@@ -121,6 +123,7 @@ async def test_on_scheduled_event_create_forum_failure(mock_scheduled_event, sam
     
     mock_scheduled_event.subscribers = lambda: subscribers_generator()
     
+    forum_manager.get_thread = MagicMock(return_value=None)  # No existing thread
     forum_manager.create_forum_post = AsyncMock(return_value=None)
     
     await handler.on_scheduled_event_create(mock_scheduled_event)
@@ -138,18 +141,18 @@ async def test_on_scheduled_event_update(mock_scheduled_event, sample_participan
     calendar_manager = MagicMock()
     handler = EventHandler(forum_manager, archive_scheduler, calendar_manager)
     
-    async def subscribers_generator():
+    async def users_generator():
         for participant in sample_participants:
             yield participant
     
-    mock_scheduled_event.subscribers = lambda: subscribers_generator()
+    mock_scheduled_event.users = lambda: users_generator()
     
     forum_manager.update_forum_post = AsyncMock(return_value=True)
-    calendar_manager.update_calendar_event = AsyncMock(return_value="https://calendar.google.com/updated")
+    calendar_manager.generate_calendar_link_for_update = MagicMock(return_value="https://calendar.google.com/updated")
     
     await handler.on_scheduled_event_update(mock_scheduled_event)
     
-    calendar_manager.update_calendar_event.assert_called_once_with(mock_scheduled_event)
+    calendar_manager.generate_calendar_link_for_update.assert_called_once_with(mock_scheduled_event)
     forum_manager.update_forum_post.assert_called_once_with(
         mock_scheduled_event,
         sample_participants,
@@ -167,11 +170,10 @@ async def test_on_scheduled_event_delete(mock_scheduled_event):
     handler = EventHandler(forum_manager, archive_scheduler, calendar_manager)
     
     archive_scheduler.archive_immediately = MagicMock()
-    calendar_manager.delete_calendar_event = AsyncMock(return_value=True)
     
     await handler.on_scheduled_event_delete(mock_scheduled_event)
     
-    calendar_manager.delete_calendar_event.assert_called_once_with(mock_scheduled_event.id)
+    # Calendar manager no longer needs to delete events (we just generate links)
     archive_scheduler.archive_immediately.assert_called_once_with(
         mock_scheduled_event,
         forum_manager,
@@ -189,11 +191,11 @@ async def test_on_scheduled_event_user_add(mock_scheduled_event, sample_particip
     # Add the new user to participants
     updated_participants = sample_participants + [mock_user]
     
-    async def subscribers_generator():
+    async def users_generator():
         for participant in updated_participants:
             yield participant
     
-    mock_scheduled_event.subscribers = lambda: subscribers_generator()
+    mock_scheduled_event.users = lambda: users_generator()
     
     forum_manager.update_forum_post = AsyncMock(return_value=True)
     
@@ -215,11 +217,11 @@ async def test_on_scheduled_event_user_remove(mock_scheduled_event, sample_parti
     # Remove one user from participants
     updated_participants = sample_participants[1:]  # Remove first participant
     
-    async def subscribers_generator():
+    async def users_generator():
         for participant in updated_participants:
             yield participant
     
-    mock_scheduled_event.subscribers = lambda: subscribers_generator()
+    mock_scheduled_event.users = lambda: users_generator()
     
     forum_manager.update_forum_post = AsyncMock(return_value=True)
     

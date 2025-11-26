@@ -38,11 +38,9 @@ A Discord bot that automatically creates forum posts for scheduled events, updat
    FORUM_CHANNEL_ID=your_forum_channel_id_here
    ARCHIVE_CATEGORY_ID=your_archive_category_id_here
    ARCHIVE_DELAY_HOURS=24
-   
-   # Optional: Google Calendar Integration
-   GOOGLE_CALENDAR_CREDENTIALS_PATH=path/to/service-account-credentials.json
-   GOOGLE_CALENDAR_ID=primary
    ```
+   
+   **Note:** Google Calendar links are automatically generated - no additional setup needed!
 
 4. Get your Discord bot token:
    - Go to https://discord.com/developers/applications
@@ -86,51 +84,12 @@ All configuration is done through environment variables in the `.env` file:
 - `FORUM_CHANNEL_ID`: The ID of the forum channel where posts are created (required)
 - `ARCHIVE_CATEGORY_ID`: The ID of the category/channel for archived posts (required)
 - `ARCHIVE_DELAY_HOURS`: Hours to wait after event completion before archiving (default: 24)
-- `GOOGLE_CALENDAR_CREDENTIALS_PATH`: Path to Google service account JSON credentials file (optional)
-- `GOOGLE_CALENDAR_ID`: Google Calendar ID to create events in (optional, defaults to "primary")
 
-### Google Calendar Setup (Optional)
+### Google Calendar Links
 
-To enable calendar invite functionality:
+The bot automatically generates "Add to Calendar" links for all events. **No setup required!** 
 
-1. **Create a Google Cloud Project:**
-   - Go to https://console.cloud.google.com/
-   - Create a new project or select an existing one
-
-2. **Enable Google Calendar API:**
-   - Navigate to "APIs & Services" > "Library"
-   - Search for "Google Calendar API"
-   - Click "Enable"
-
-3. **Create a Service Account:**
-   - Go to "APIs & Services" > "Credentials"
-   - Click "Create Credentials" > "Service Account"
-   - Give it a name (e.g., "discord-bot-calendar")
-   - Click "Create and Continue"
-   - Skip role assignment (or add "Editor" if needed)
-   - Click "Done"
-
-4. **Create and Download Service Account Key:**
-   - Click on the service account you just created
-   - Go to "Keys" tab
-   - Click "Add Key" > "Create new key"
-   - Choose "JSON" format
-   - Download the JSON file
-   - Save it in your project directory (e.g., `google-credentials.json`)
-
-5. **Share Calendar with Service Account:**
-   - Open Google Calendar
-   - Go to Settings > Settings for my calendars
-   - Select the calendar you want to use (or create a new one)
-   - Under "Share with specific people", add the service account email (found in the JSON file as `client_email`)
-   - Give it "Make changes to events" permission
-
-6. **Add to `.env` file:**
-   ```env
-   GOOGLE_CALENDAR_CREDENTIALS_PATH=google-credentials.json
-   GOOGLE_CALENDAR_ID=your-calendar-id@group.calendar.google.com
-   ```
-   (To find your calendar ID, go to Calendar Settings > Integrate calendar > Calendar ID)
+When users click the calendar link in a forum post, it opens Google Calendar with the event details pre-filled. Each user adds the event to their own personal calendar - they cannot see other participants. This is perfect for privacy and ensures everyone has their own calendar entry.
 
 ## How It Works
 
@@ -138,7 +97,7 @@ To enable calendar invite functionality:
    - Event name as the post title
    - Event description
    - Start and end times
-   - **Google Calendar link** (if configured) - clickable link to add event to calendar
+   - **Google Calendar link** - clickable link that opens Google Calendar with event details pre-filled (each user adds it to their own personal calendar)
    - Initial participant list
    - Encouragement message for interaction
 

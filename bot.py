@@ -35,13 +35,9 @@ class EventBot(commands.Bot):
         
         super().__init__(command_prefix='!', intents=intents)
         
-        # Initialize calendar manager (optional)
-        calendar_manager = None
-        if Config.GOOGLE_CALENDAR_CREDENTIALS_PATH:
-            calendar_manager = CalendarManager(
-                Config.GOOGLE_CALENDAR_CREDENTIALS_PATH,
-                Config.GOOGLE_CALENDAR_ID
-            )
+        # Initialize calendar manager (always available - no credentials needed)
+        # This just generates "Add to Calendar" links - no API calls required
+        calendar_manager = CalendarManager()
         
         # Initialize managers
         self.forum_manager = ForumManager(Config.FORUM_CHANNEL_ID, calendar_manager)

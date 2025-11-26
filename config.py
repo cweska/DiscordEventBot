@@ -21,10 +21,6 @@ class Config:
     # Archive delay in hours (default: 24)
     ARCHIVE_DELAY_HOURS = int(os.getenv("ARCHIVE_DELAY_HOURS", "24"))
     
-    # Google Calendar Configuration (optional)
-    GOOGLE_CALENDAR_CREDENTIALS_PATH = os.getenv("GOOGLE_CALENDAR_CREDENTIALS_PATH")
-    GOOGLE_CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID", "primary")
-    
     @classmethod
     def validate(cls):
         """Validate that all required configuration is present."""

@@ -50,13 +50,21 @@ async def test_process_existing_events_no_threads(mock_bot, mock_scheduled_event
         return [mock_scheduled_event]
     mock_guild.fetch_scheduled_events = fetch_events
     
-    with patch.object(mock_bot.forum_manager, 'get_thread', return_value=None), \
-         patch.object(mock_bot.forum_manager, 'find_existing_thread', new_callable=AsyncMock, return_value=None):
-        mock_bot.event_handler.on_scheduled_event_create = AsyncMock()
-        
+    # Mock users() method for the event
+    async def empty_users():
+        if False:
+            yield
+    mock_scheduled_event.users = lambda: empty_users()
+    
+    # Mock find_existing_thread to avoid calling get_forum_channel
+    mock_bot.forum_manager.find_existing_thread = AsyncMock(return_value=None)
+    mock_bot.forum_manager.get_thread = MagicMock(return_value=None)
+    
+    # Patch on_scheduled_event_create to prevent it from running (which would call get_event_participants)
+    with patch.object(mock_bot.event_handler, 'on_scheduled_event_create', new_callable=AsyncMock) as mock_create:
         await mock_bot.process_existing_events()
         
-        mock_bot.event_handler.on_scheduled_event_create.assert_called_once_with(mock_scheduled_event)
+        mock_create.assert_called_once_with(mock_scheduled_event)
 
 
 @pytest.mark.asyncio
@@ -67,12 +75,21 @@ async def test_process_existing_events_with_existing_thread(mock_bot, mock_sched
         return [mock_scheduled_event]
     mock_guild.fetch_scheduled_events = fetch_events
     
-    with patch.object(mock_bot.forum_manager, 'get_thread', return_value=mock_thread):
-        mock_bot.event_handler.on_scheduled_event_update = AsyncMock()
-        
+    # Mock users() method for the event
+    async def empty_users():
+        if False:
+            yield
+    mock_scheduled_event.users = lambda: empty_users()
+    
+    # Mock all dependencies so the real handler can run
+    mock_bot.forum_manager.get_thread = MagicMock(return_value=mock_thread)
+    mock_bot.forum_manager.update_forum_post = AsyncMock(return_value=True)
+    mock_bot.archive_scheduler.schedule_archive = MagicMock()
+    
+    with patch.object(mock_bot.event_handler, 'on_scheduled_event_update', new_callable=AsyncMock) as mock_update:
         await mock_bot.process_existing_events()
         
-        mock_bot.event_handler.on_scheduled_event_update.assert_called_once_with(mock_scheduled_event)
+        mock_update.assert_called_once_with(mock_scheduled_event)
 
 
 @pytest.mark.asyncio
@@ -83,12 +100,22 @@ async def test_process_existing_events_finds_thread(mock_bot, mock_scheduled_eve
         return [mock_scheduled_event]
     mock_guild.fetch_scheduled_events = fetch_events
     
-    with patch.object(mock_bot.forum_manager, 'get_thread', return_value=None), \
-         patch.object(mock_bot.forum_manager, 'find_existing_thread', new_callable=AsyncMock, return_value=mock_thread):
-        mock_bot.event_handler.on_scheduled_event_update = AsyncMock()
-        
+    # Mock users() method for the event
+    async def empty_users():
+        if False:
+            yield
+    mock_scheduled_event.users = lambda: empty_users()
+    
+    # Mock all dependencies so the real handler can run
+    mock_bot.forum_manager.get_thread = MagicMock(return_value=None)
+    mock_bot.forum_manager.find_existing_thread = AsyncMock(return_value=mock_thread)
+    mock_bot.forum_manager.update_forum_post = AsyncMock(return_value=True)
+    mock_bot.archive_scheduler.schedule_archive = MagicMock()
+    
+    with patch.object(mock_bot.event_handler, 'on_scheduled_event_update', new_callable=AsyncMock) as mock_update:
         await mock_bot.process_existing_events()
         
+        mock_update.assert_called_once_with(mock_scheduled_event)
         # Should have added thread to mapping
         assert mock_bot.forum_manager.event_posts.get(mock_scheduled_event.id) == mock_thread
         mock_bot.event_handler.on_scheduled_event_update.assert_called_once_with(mock_scheduled_event)
@@ -194,11 +221,11 @@ async def test_end_to_end_event_lifecycle(mock_config):
         mock_user2 = MagicMock(spec=discord.User)
         mock_user2.mention = "<@222>"
         
-        async def subscribers_gen():
+        async def users_gen():
             yield mock_user1
             yield mock_user2
         
-        mock_event.subscribers = lambda: subscribers_gen()
+        mock_event.users = lambda: users_gen()
         
         # 1. Create event
         await event_handler.on_scheduled_event_create(mock_event)
@@ -208,20 +235,20 @@ async def test_end_to_end_event_lifecycle(mock_config):
         mock_user3 = MagicMock(spec=discord.User)
         mock_user3.mention = "<@333>"
         
-        async def subscribers_gen_updated():
+        async def users_gen_updated():
             yield mock_user1
             yield mock_user2
             yield mock_user3
         
-        mock_event.subscribers = lambda: subscribers_gen_updated()
+        mock_event.users = lambda: users_gen_updated()
         await event_handler.on_scheduled_event_user_add(mock_event, mock_user3)
         
         # 3. User leaves
-        async def subscribers_gen_removed():
+        async def users_gen_removed():
             yield mock_user1
             yield mock_user3
         
-        mock_event.subscribers = lambda: subscribers_gen_removed()
+        mock_event.users = lambda: users_gen_removed()
         await event_handler.on_scheduled_event_user_remove(mock_event, mock_user2)
         
         # 4. Update event
