@@ -1,0 +1,200 @@
+"""Event handlers for Discord scheduled events."""
+import discord
+import logging
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+
+class EventHandler:
+    """Handles Discord scheduled event lifecycle events."""
+    
+    def __init__(self, forum_manager, archive_scheduler, calendar_manager=None):
+        """
+        Initialize the EventHandler.
+        
+        Args:
+            forum_manager: ForumManager instance
+            archive_scheduler: ArchiveScheduler instance
+            calendar_manager: Optional CalendarManager instance
+        """
+        self.forum_manager = forum_manager
+        self.archive_scheduler = archive_scheduler
+        self.calendar_manager = calendar_manager
+    
+    async def get_event_participants(self, event: discord.ScheduledEvent) -> list:
+        """
+        Get the list of users subscribed to an event.
+        
+        Args:
+            event: The scheduled event
+            
+        Returns:
+            List of user objects who are subscribed to the event
+        """
+        try:
+            participants = []
+            async for user in event.subscribers():
+                participants.append(user)
+            return participants
+        except Exception as e:
+            logger.error(f"Error getting participants for event {event.id}: {e}")
+            return []
+    
+    async def on_scheduled_event_create(self, event: discord.ScheduledEvent):
+        """
+        Handle when a scheduled event is created.
+        
+        Args:
+            event: The created scheduled event
+        """
+        try:
+            logger.info(f"Event created: {event.name} (ID: {event.id})")
+            
+            # Check if forum post already exists to prevent duplicates
+            if self.forum_manager.get_thread(event.id):
+                logger.info(f"Forum post already exists for event {event.id}, skipping creation")
+                return
+            
+            # Get initial participants
+            participants = await self.get_event_participants(event)
+            
+            # Create calendar event if calendar manager is available
+            calendar_link = None
+            if self.calendar_manager:
+                calendar_link = await self.calendar_manager.create_calendar_event(event)
+            
+            # Create forum post
+            thread = await self.forum_manager.create_forum_post(event, participants, calendar_link)
+            
+            if thread:
+                # Schedule archive task
+                self.archive_scheduler.schedule_archive(
+                    event, 
+                    self.forum_manager, 
+                    self._on_archive_complete
+                )
+                logger.info(f"Successfully set up forum post for event {event.id}")
+            else:
+                logger.error(f"Failed to create forum post for event {event.id}")
+                
+        except Exception as e:
+            logger.error(f"Error handling event creation: {e}")
+    
+    async def on_scheduled_event_update(self, event: discord.ScheduledEvent):
+        """
+        Handle when a scheduled event is updated.
+        
+        Args:
+            event: The updated scheduled event
+        """
+        try:
+            logger.info(f"Event updated: {event.name} (ID: {event.id})")
+            
+            # Get current participants
+            participants = await self.get_event_participants(event)
+            
+            # Update calendar event if calendar manager is available
+            calendar_link = None
+            if self.calendar_manager:
+                calendar_link = await self.calendar_manager.update_calendar_event(event)
+            
+            # Update forum post
+            await self.forum_manager.update_forum_post(event, participants, calendar_link)
+            
+            # Reschedule archive if end time changed
+            self.archive_scheduler.schedule_archive(
+                event, 
+                self.forum_manager, 
+                self._on_archive_complete
+            )
+            
+        except Exception as e:
+            logger.error(f"Error handling event update: {e}")
+    
+    async def on_scheduled_event_delete(self, event: discord.ScheduledEvent):
+        """
+        Handle when a scheduled event is deleted.
+        
+        Args:
+            event: The deleted scheduled event
+        """
+        try:
+            logger.info(f"Event deleted: {event.name} (ID: {event.id})")
+            
+            # Delete calendar event if calendar manager is available
+            if self.calendar_manager:
+                await self.calendar_manager.delete_calendar_event(event.id)
+            
+            # Archive immediately
+            self.archive_scheduler.archive_immediately(
+                event, 
+                self.forum_manager, 
+                self._on_archive_complete
+            )
+            
+        except Exception as e:
+            logger.error(f"Error handling event deletion: {e}")
+    
+    async def on_scheduled_event_user_add(
+        self, 
+        event: discord.ScheduledEvent, 
+        user: discord.User
+    ):
+        """
+        Handle when a user subscribes to a scheduled event.
+        
+        Args:
+            event: The scheduled event
+            user: The user who subscribed
+        """
+        try:
+            logger.info(f"User {user.name} subscribed to event {event.name} (ID: {event.id})")
+            
+            # Get updated participants
+            participants = await self.get_event_participants(event)
+            
+            # Update forum post
+            await self.forum_manager.update_forum_post(event, participants)
+            
+        except Exception as e:
+            logger.error(f"Error handling user subscription: {e}")
+    
+    async def on_scheduled_event_user_remove(
+        self, 
+        event: discord.ScheduledEvent, 
+        user: discord.User
+    ):
+        """
+        Handle when a user unsubscribes from a scheduled event.
+        
+        Args:
+            event: The scheduled event
+            user: The user who unsubscribed
+        """
+        try:
+            logger.info(f"User {user.name} unsubscribed from event {event.name} (ID: {event.id})")
+            
+            # Get updated participants
+            participants = await self.get_event_participants(event)
+            
+            # Update forum post
+            await self.forum_manager.update_forum_post(event, participants)
+            
+        except Exception as e:
+            logger.error(f"Error handling user unsubscription: {e}")
+    
+    async def _on_archive_complete(
+        self, 
+        event: discord.ScheduledEvent, 
+        archive_category: discord.CategoryChannel
+    ):
+        """
+        Callback when archiving is complete.
+        
+        Args:
+            event: The archived event
+            archive_category: The category where it was archived
+        """
+        logger.info(f"Successfully archived forum post for event {event.name} (ID: {event.id})")
+
