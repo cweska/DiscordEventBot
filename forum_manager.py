@@ -186,6 +186,11 @@ class ForumManager:
             else:
                 # Use existing calendar link if available
                 calendar_link = self.calendar_links.get(event.id)
+                # If no calendar link exists, generate one (shouldn't happen, but be safe)
+                if not calendar_link and self.calendar_manager:
+                    calendar_link = self.calendar_manager.generate_calendar_link(event)
+                    if calendar_link:
+                        self.calendar_links[event.id] = calendar_link
             
             # Get the first message (the post content)
             # For forum posts, the starter message is the first message in the thread

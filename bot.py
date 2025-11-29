@@ -95,9 +95,10 @@ class EventBot(commands.Bot):
         """Called when a scheduled event is created."""
         await self.event_handler.on_scheduled_event_create(event)
     
-    async def on_scheduled_event_update(self, event: discord.ScheduledEvent):
+    async def on_scheduled_event_update(self, before: discord.ScheduledEvent, after: discord.ScheduledEvent):
         """Called when a scheduled event is updated."""
-        await self.event_handler.on_scheduled_event_update(event)
+        # Discord passes both 'before' and 'after' states, we use 'after' (the updated event)
+        await self.event_handler.on_scheduled_event_update(after)
     
     async def on_scheduled_event_delete(self, event: discord.ScheduledEvent):
         """Called when a scheduled event is deleted."""

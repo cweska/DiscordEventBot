@@ -197,14 +197,18 @@ async def test_on_scheduled_event_user_add(mock_scheduled_event, sample_particip
     
     mock_scheduled_event.users = lambda: users_generator()
     
+    forum_manager.calendar_links = {}  # Initialize calendar_links dict
     forum_manager.update_forum_post = AsyncMock(return_value=True)
     
     await handler.on_scheduled_event_user_add(mock_scheduled_event, mock_user)
     
-    forum_manager.update_forum_post.assert_called_once_with(
-        mock_scheduled_event,
-        updated_participants
-    )
+    # Should preserve calendar link (None in this case since none exists)
+    forum_manager.update_forum_post.assert_called_once()
+    call_args = forum_manager.update_forum_post.call_args
+    assert call_args[0][0] == mock_scheduled_event
+    assert call_args[0][1] == updated_participants
+    # calendar_link should be None or a generated link
+    assert call_args[0][2] is None or isinstance(call_args[0][2], str)
 
 
 @pytest.mark.asyncio
@@ -223,14 +227,18 @@ async def test_on_scheduled_event_user_remove(mock_scheduled_event, sample_parti
     
     mock_scheduled_event.users = lambda: users_generator()
     
+    forum_manager.calendar_links = {}  # Initialize calendar_links dict
     forum_manager.update_forum_post = AsyncMock(return_value=True)
     
     await handler.on_scheduled_event_user_remove(mock_scheduled_event, mock_user)
     
-    forum_manager.update_forum_post.assert_called_once_with(
-        mock_scheduled_event,
-        updated_participants
-    )
+    # Should preserve calendar link (None in this case since none exists)
+    forum_manager.update_forum_post.assert_called_once()
+    call_args = forum_manager.update_forum_post.call_args
+    assert call_args[0][0] == mock_scheduled_event
+    assert call_args[0][1] == updated_participants
+    # calendar_link should be None or a generated link
+    assert call_args[0][2] is None or isinstance(call_args[0][2], str)
 
 
 @pytest.mark.asyncio

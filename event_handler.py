@@ -150,8 +150,14 @@ class EventHandler:
             # Get updated participants
             participants = await self.get_event_participants(event)
             
+            # Preserve existing calendar link (don't regenerate, just use existing)
+            calendar_link = self.forum_manager.calendar_links.get(event.id)
+            if not calendar_link and self.calendar_manager:
+                # Generate if missing (shouldn't happen, but be safe)
+                calendar_link = self.calendar_manager.generate_calendar_link(event)
+            
             # Update forum post
-            await self.forum_manager.update_forum_post(event, participants)
+            await self.forum_manager.update_forum_post(event, participants, calendar_link)
             
         except Exception as e:
             logger.error(f"Error handling user subscription: {e}")
@@ -174,8 +180,14 @@ class EventHandler:
             # Get updated participants
             participants = await self.get_event_participants(event)
             
+            # Preserve existing calendar link (don't regenerate, just use existing)
+            calendar_link = self.forum_manager.calendar_links.get(event.id)
+            if not calendar_link and self.calendar_manager:
+                # Generate if missing (shouldn't happen, but be safe)
+                calendar_link = self.calendar_manager.generate_calendar_link(event)
+            
             # Update forum post
-            await self.forum_manager.update_forum_post(event, participants)
+            await self.forum_manager.update_forum_post(event, participants, calendar_link)
             
         except Exception as e:
             logger.error(f"Error handling user unsubscription: {e}")
