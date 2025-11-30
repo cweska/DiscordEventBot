@@ -15,7 +15,7 @@ class Config:
     # Forum Channel ID where posts are created
     FORUM_CHANNEL_ID = int(os.getenv("FORUM_CHANNEL_ID", "0")) or None
     
-    # Archive Category/Channel ID where archived posts go
+    # Archive Category/Channel ID (deprecated - no longer used, kept for backward compatibility)
     ARCHIVE_CATEGORY_ID = int(os.getenv("ARCHIVE_CATEGORY_ID", "0")) or None
     
     # Archive delay in hours (default: 24)
@@ -31,9 +31,6 @@ class Config:
         
         if not cls.FORUM_CHANNEL_ID:
             errors.append("FORUM_CHANNEL_ID is required")
-        
-        if not cls.ARCHIVE_CATEGORY_ID:
-            errors.append("ARCHIVE_CATEGORY_ID is required")
         
         if errors:
             raise ValueError(f"Configuration errors: {', '.join(errors)}")

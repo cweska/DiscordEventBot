@@ -1,12 +1,12 @@
 # Discord Event Bot
 
-A Discord bot that automatically creates forum posts for scheduled events, updates participant lists, and archives posts after events complete.
+A Discord bot that automatically creates forum posts for scheduled events, updates participant lists, and closes posts after events complete.
 
 ## Features
 
 - **Automatic Forum Post Creation**: Creates a forum post whenever a Discord scheduled event is created
 - **Dynamic Participant Updates**: Automatically updates the forum post when users join or leave events
-- **Smart Archiving**: Archives forum posts 24 hours after events complete (configurable)
+- **Automatic Post Closure**: Closes forum posts 24 hours after events complete (configurable), moving them to "Older Posts"
 - **Event Lifecycle Management**: Handles event creation, updates, deletion, and participant changes
 
 ## Setup
@@ -17,7 +17,6 @@ A Discord bot that automatically creates forum posts for scheduled events, updat
 - A Discord bot token
 - A Discord server with:
   - A forum channel (where posts will be created)
-  - An archive category/channel (where archived posts will be moved)
 
 ### Installation
 
@@ -36,7 +35,6 @@ A Discord bot that automatically creates forum posts for scheduled events, updat
    ```env
    DISCORD_BOT_TOKEN=your_bot_token_here
    FORUM_CHANNEL_ID=your_forum_channel_id_here
-   ARCHIVE_CATEGORY_ID=your_archive_category_id_here
    ARCHIVE_DELAY_HOURS=24
    ```
    
@@ -48,11 +46,10 @@ A Discord bot that automatically creates forum posts for scheduled events, updat
    - Go to the "Bot" section
    - Copy the token and add it to your `.env` file
 
-5. Get channel IDs:
+5. Get channel ID:
    - Enable Developer Mode in Discord (User Settings > Advanced > Developer Mode)
    - Right-click on your forum channel and select "Copy ID"
-   - Right-click on your archive category/channel and select "Copy ID"
-   - Add these IDs to your `.env` file
+   - Add this ID to your `.env` file
 
 6. Invite the bot to your server:
    - In the Discord Developer Portal, go to OAuth2 > URL Generator
@@ -82,8 +79,7 @@ All configuration is done through environment variables in the `.env` file:
 
 - `DISCORD_BOT_TOKEN`: Your Discord bot token (required)
 - `FORUM_CHANNEL_ID`: The ID of the forum channel where posts are created (required)
-- `ARCHIVE_CATEGORY_ID`: The ID of the category/channel for archived posts (required)
-- `ARCHIVE_DELAY_HOURS`: Hours to wait after event completion before archiving (default: 24)
+- `ARCHIVE_DELAY_HOURS`: Hours to wait after event completion before closing the post (default: 24)
 
 ### Google Calendar Links
 
@@ -105,9 +101,10 @@ When users click the calendar link in a forum post, it opens Google Calendar wit
 
 3. **Event Updates**: If event details change, the forum post is updated accordingly.
 
-4. **Archiving**: 
-   - If an event is deleted, the forum post is archived immediately
-   - Otherwise, the forum post is archived 24 hours after the event ends (configurable)
+4. **Post Closure**: 
+   - If an event is deleted, the forum post is closed immediately
+   - Otherwise, the forum post is closed 24 hours after the event ends (configurable)
+   - Closed posts automatically move to the "Older Posts" section in Discord
 
 ## Project Structure
 
@@ -140,10 +137,9 @@ The bot logs all operations to both `bot.log` and the console. Logs include:
 - Verify the `FORUM_CHANNEL_ID` is correct
 - Check the bot logs for error messages
 
-### Forum posts aren't being archived
-- Verify the `ARCHIVE_CATEGORY_ID` is correct
+### Forum posts aren't being closed
 - Check that the bot has permission to manage threads
-- Review logs for any errors during archiving
+- Review logs for any errors during post closure
 
 ### Participant list not updating
 - Ensure the bot has permission to view scheduled event subscribers

@@ -8,32 +8,9 @@ from archive_scheduler import ArchiveScheduler
 
 
 @pytest.mark.asyncio
-async def test_get_archive_category_success(mock_guild, mock_archive_category):
-    """Test successfully getting archive category."""
-    scheduler = ArchiveScheduler(24, 555666777)
-    mock_guild.get_channel.return_value = mock_archive_category
-    
-    result = await scheduler.get_archive_category(mock_guild)
-    
-    assert result == mock_archive_category
-    mock_guild.get_channel.assert_called_once_with(555666777)
-
-
-@pytest.mark.asyncio
-async def test_get_archive_category_not_found(mock_guild):
-    """Test when archive category is not found."""
-    scheduler = ArchiveScheduler(24, 555666777)
-    mock_guild.get_channel.return_value = None
-    
-    result = await scheduler.get_archive_category(mock_guild)
-    
-    assert result is None
-
-
-@pytest.mark.asyncio
 async def test_schedule_archive_future_event(mock_scheduled_event, mock_forum_manager):
     """Test scheduling archive for a future event."""
-    scheduler = ArchiveScheduler(24, 555666777)
+    scheduler = ArchiveScheduler(24)
     
     # Set event end time to 1 hour from now
     mock_scheduled_event.end_time = discord.utils.utcnow() + timedelta(hours=1)
@@ -50,7 +27,7 @@ async def test_schedule_archive_future_event(mock_scheduled_event, mock_forum_ma
 @pytest.mark.asyncio
 async def test_schedule_archive_past_event_immediate(mock_scheduled_event, mock_forum_manager):
     """Test scheduling archive for an event that already ended - should archive immediately."""
-    scheduler = ArchiveScheduler(24, 555666777)
+    scheduler = ArchiveScheduler(24)
     
     # Set event end time to 25 hours ago (more than delay)
     mock_scheduled_event.end_time = discord.utils.utcnow() - timedelta(hours=25)
@@ -70,7 +47,7 @@ async def test_schedule_archive_past_event_immediate(mock_scheduled_event, mock_
 @pytest.mark.asyncio
 async def test_schedule_archive_no_end_time(mock_scheduled_event, mock_forum_manager):
     """Test scheduling archive for event with no end time."""
-    scheduler = ArchiveScheduler(24, 555666777)
+    scheduler = ArchiveScheduler(24)
     mock_scheduled_event.end_time = None
     
     callback = AsyncMock()
@@ -83,7 +60,7 @@ async def test_schedule_archive_no_end_time(mock_scheduled_event, mock_forum_man
 @pytest.mark.asyncio
 async def test_schedule_archive_cancels_existing(mock_scheduled_event, mock_forum_manager):
     """Test that scheduling archive cancels existing task."""
-    scheduler = ArchiveScheduler(24, 555666777)
+    scheduler = ArchiveScheduler(24)
     mock_scheduled_event.end_time = discord.utils.utcnow() + timedelta(hours=1)
     
     # Schedule first task
@@ -106,7 +83,7 @@ async def test_schedule_archive_cancels_existing(mock_scheduled_event, mock_foru
 @pytest.mark.asyncio
 async def test_cancel_archive(mock_scheduled_event, mock_forum_manager):
     """Test canceling a scheduled archive."""
-    scheduler = ArchiveScheduler(24, 555666777)
+    scheduler = ArchiveScheduler(24)
     mock_scheduled_event.end_time = discord.utils.utcnow() + timedelta(hours=1)
     
     callback = AsyncMock()
@@ -120,11 +97,10 @@ async def test_cancel_archive(mock_scheduled_event, mock_forum_manager):
 
 
 @pytest.mark.asyncio
-async def test_archive_immediately(mock_scheduled_event, mock_forum_manager, mock_archive_category):
+async def test_archive_immediately(mock_scheduled_event, mock_forum_manager):
     """Test archiving immediately."""
-    scheduler = ArchiveScheduler(24, 555666777)
+    scheduler = ArchiveScheduler(24)
     mock_scheduled_event.end_time = discord.utils.utcnow() + timedelta(hours=1)
-    mock_scheduled_event.guild.get_channel.return_value = mock_archive_category
     
     # Schedule a future archive first
     callback = AsyncMock()
@@ -146,10 +122,9 @@ async def test_archive_immediately(mock_scheduled_event, mock_forum_manager, moc
 
 
 @pytest.mark.asyncio
-async def test_archive_task_execution(mock_scheduled_event, mock_forum_manager, mock_archive_category):
+async def test_archive_task_execution(mock_scheduled_event, mock_forum_manager):
     """Test the archive task execution."""
-    scheduler = ArchiveScheduler(24, 555666777)
-    mock_scheduled_event.guild.get_channel.return_value = mock_archive_category
+    scheduler = ArchiveScheduler(24)
     mock_forum_manager.archive_forum_post = AsyncMock(return_value=True)
     
     callback = AsyncMock()
@@ -158,26 +133,11 @@ async def test_archive_task_execution(mock_scheduled_event, mock_forum_manager, 
     await scheduler._archive_task(mock_scheduled_event, mock_forum_manager, callback)
     
     mock_forum_manager.archive_forum_post.assert_called_once_with(
-        mock_scheduled_event.id,
-        mock_archive_category
+        mock_scheduled_event.id
     )
-    callback.assert_called_once_with(mock_scheduled_event, mock_archive_category)
+    callback.assert_called_once_with(mock_scheduled_event)
 
 
-@pytest.mark.asyncio
-async def test_archive_task_no_category(mock_scheduled_event, mock_forum_manager):
-    """Test archive task when category doesn't exist."""
-    scheduler = ArchiveScheduler(24, 555666777)
-    mock_scheduled_event.guild.get_channel.return_value = None
-    mock_forum_manager.archive_forum_post = AsyncMock()
-    
-    callback = AsyncMock()
-    
-    await scheduler._archive_task(mock_scheduled_event, mock_forum_manager, callback)
-    
-    # Should not call archive_forum_post if category not found
-    mock_forum_manager.archive_forum_post.assert_not_called()
-    callback.assert_not_called()
 
 
 @pytest.fixture

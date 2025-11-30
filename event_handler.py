@@ -227,15 +227,13 @@ class EventHandler:
     
     async def _on_archive_complete(
         self, 
-        event: discord.ScheduledEvent, 
-        archive_category: discord.CategoryChannel
+        event: discord.ScheduledEvent
     ):
         """
-        Callback when archiving is complete.
+        Callback when post closure is complete.
         
         Args:
-            event: The archived event
-            archive_category: The category where it was archived
+            event: The event whose forum post was closed
         """
-        logger.info(f"Successfully archived forum post for event {event.name} (ID: {event.id})")
+        logger.info(f"Successfully closed forum post for event {event.name} (ID: {event.id})")
 

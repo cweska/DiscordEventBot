@@ -396,10 +396,10 @@ async def test_on_scheduled_event_user_remove(mock_scheduled_event, sample_parti
 
 
 @pytest.mark.asyncio
-async def test_on_archive_complete(mock_scheduled_event, mock_archive_category):
+async def test_on_archive_complete(mock_scheduled_event):
     """Test archive completion callback."""
     handler = EventHandler(MagicMock(), MagicMock())
     
     # This should just log, so we just verify it doesn't raise
-    await handler._on_archive_complete(mock_scheduled_event, mock_archive_category)
+    await handler._on_archive_complete(mock_scheduled_event)
 

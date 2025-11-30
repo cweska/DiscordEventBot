@@ -224,39 +224,38 @@ async def test_update_forum_post_no_message(mock_scheduled_event, mock_thread):
 
 
 @pytest.mark.asyncio
-async def test_archive_forum_post_success(mock_thread, mock_archive_category):
+async def test_archive_forum_post_success(mock_thread):
     """Test successfully archiving a forum post."""
     manager = ForumManager(987654321)
     event_id = 444555666
     manager.event_posts[event_id] = mock_thread
     
-    result = await manager.archive_forum_post(event_id, mock_archive_category)
+    result = await manager.archive_forum_post(event_id)
     
     assert result is True
     assert event_id not in manager.event_posts
-    mock_thread.edit.assert_called_once_with(archived=True, locked=True)
+    mock_thread.edit.assert_called_once_with(archived=True)
 
 
 @pytest.mark.asyncio
 async def test_archive_forum_post_not_found():
     """Test archiving a forum post that doesn't exist."""
     manager = ForumManager(987654321)
-    mock_archive_category = MagicMock()
     
-    result = await manager.archive_forum_post(999999999, mock_archive_category)
+    result = await manager.archive_forum_post(999999999)
     
     assert result is False
 
 
 @pytest.mark.asyncio
-async def test_archive_forum_post_permission_error(mock_thread, mock_archive_category):
+async def test_archive_forum_post_permission_error(mock_thread):
     """Test archiving forum post with permission error."""
     manager = ForumManager(987654321)
     event_id = 444555666
     manager.event_posts[event_id] = mock_thread
     mock_thread.edit.side_effect = discord.Forbidden(MagicMock(), "No permission")
     
-    result = await manager.archive_forum_post(event_id, mock_archive_category)
+    result = await manager.archive_forum_post(event_id)
     
     assert result is False
     # On permission error, the thread should still be removed from tracking

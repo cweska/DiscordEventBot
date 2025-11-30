@@ -276,26 +276,24 @@ class ForumManager:
     
     async def archive_forum_post(
         self, 
-        event_id: int, 
-        archive_category: Optional[discord.CategoryChannel] = None
+        event_id: int
     ) -> bool:
         """
-        Archive a forum post by locking and archiving it.
+        Close a forum post by archiving it.
         
-        Note: Discord doesn't support moving threads to different categories,
-        so we archive and lock the thread instead.
+        This closes the forum thread, which automatically moves it to Discord's
+        "Older Posts" section. The post remains readable but is no longer active.
         
         Args:
             event_id: The ID of the event
-            archive_category: Optional category (not used, kept for API compatibility)
             
         Returns:
-            True if archiving was successful, False otherwise
+            True if closing was successful, False otherwise
         """
         try:
             thread = self.event_posts.get(event_id)
             if not thread:
-                logger.warning(f"No forum post found for event {event_id} to archive")
+                logger.warning(f"No forum post found for event {event_id} to close")
                 return False
             
             # Handle ThreadWithMessage objects - extract the thread if needed
@@ -307,21 +305,20 @@ class ForumManager:
                 # This is already a Thread object (or has edit method)
                 actual_thread = thread
             
-            # Archive and lock the thread
-            # Note: Discord doesn't support moving threads directly, so we lock it
-            await actual_thread.edit(archived=True, locked=True)
+            # Close the thread (archive it) - this moves it to "Older Posts" section
+            await actual_thread.edit(archived=True)
             
             # Remove from our tracking
             del self.event_posts[event_id]
             
-            logger.info(f"Archived forum post for event {event_id}")
+            logger.info(f"Closed forum post for event {event_id}")
             return True
             
         except discord.Forbidden:
-            logger.error(f"Bot lacks permissions to archive forum post for event {event_id}")
+            logger.error(f"Bot lacks permissions to close forum post for event {event_id}")
             return False
         except discord.HTTPException as e:
-            logger.error(f"HTTP error archiving forum post: {e}")
+            logger.error(f"HTTP error closing forum post: {e}")
             return False
         except Exception as e:
             logger.error(f"Unexpected error archiving forum post: {e}")

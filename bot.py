@@ -42,8 +42,7 @@ class EventBot(commands.Bot):
         # Initialize managers
         self.forum_manager = ForumManager(Config.FORUM_CHANNEL_ID, calendar_manager)
         self.archive_scheduler = ArchiveScheduler(
-            Config.ARCHIVE_DELAY_HOURS,
-            Config.ARCHIVE_CATEGORY_ID
+            Config.ARCHIVE_DELAY_HOURS
         )
         self.event_handler = EventHandler(
             self.forum_manager,

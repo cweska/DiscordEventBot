@@ -12,7 +12,6 @@ def mock_config(monkeypatch):
     """Mock configuration for testing."""
     monkeypatch.setenv("DISCORD_BOT_TOKEN", "test_token")
     monkeypatch.setenv("FORUM_CHANNEL_ID", "987654321")
-    monkeypatch.setenv("ARCHIVE_CATEGORY_ID", "555666777")
     monkeypatch.setenv("ARCHIVE_DELAY_HOURS", "24")
     
     # Reload config
@@ -233,7 +232,7 @@ async def test_end_to_end_event_lifecycle(mock_config):
         from event_handler import EventHandler
         
         forum_manager = ForumManager(987654321, None)  # No calendar manager for this test
-        archive_scheduler = ArchiveScheduler(24, 555666777)
+        archive_scheduler = ArchiveScheduler(24)
         event_handler = EventHandler(forum_manager, archive_scheduler, None)
         
         # Create mock event
@@ -303,8 +302,6 @@ async def test_end_to_end_event_lifecycle(mock_config):
         await event_handler.on_scheduled_event_update(mock_event, mock_event)
         
         # 5. Delete event (archive immediately)
-        mock_archive_category = MagicMock(spec=discord.CategoryChannel)
-        mock_event.guild.get_channel.return_value = mock_archive_category
         await event_handler.on_scheduled_event_delete(mock_event)
         
         # Verify archiving was scheduled (the actual archiving happens async)

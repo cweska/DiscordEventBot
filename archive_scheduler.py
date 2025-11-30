@@ -11,32 +11,15 @@ logger = logging.getLogger(__name__)
 class ArchiveScheduler:
     """Handles scheduling archive tasks for forum posts."""
     
-    def __init__(self, archive_delay_hours: int, archive_category_id: int):
+    def __init__(self, archive_delay_hours: int):
         """
         Initialize the ArchiveScheduler.
         
         Args:
-            archive_delay_hours: Hours to wait after event completion before archiving
-            archive_category_id: ID of the category/channel for archived posts
+            archive_delay_hours: Hours to wait after event completion before closing the post
         """
         self.archive_delay_hours = archive_delay_hours
-        self.archive_category_id = archive_category_id
         self.scheduled_tasks: Dict[int, asyncio.Task] = {}  # event_id -> task mapping
-    
-    async def get_archive_category(self, guild: discord.Guild) -> Optional[discord.CategoryChannel]:
-        """Get the archive category from the guild."""
-        try:
-            category = guild.get_channel(self.archive_category_id)
-            if isinstance(category, discord.CategoryChannel):
-                return category
-            # Could also be a channel, which is fine
-            if category:
-                return category
-            logger.error(f"Archive category/channel {self.archive_category_id} not found")
-            return None
-        except Exception as e:
-            logger.error(f"Error getting archive category: {e}")
-            return None
     
     def schedule_archive(
         self, 
@@ -76,7 +59,7 @@ class ArchiveScheduler:
         )
         self.scheduled_tasks[event.id] = task
         
-        logger.info(f"Scheduled archive for event {event.id} at {archive_time}")
+        logger.info(f"Scheduled post closure for event {event.id} at {archive_time}")
     
     async def _archive_task_delayed(
         self, 
@@ -100,16 +83,11 @@ class ArchiveScheduler:
         forum_manager, 
         callback
     ):
-        """Execute the archive task."""
+        """Execute the archive task - closes the forum post."""
         try:
-            archive_category = await self.get_archive_category(event.guild)
-            if not archive_category:
-                logger.error(f"Cannot archive event {event.id}: archive category not found")
-                return
-            
-            success = await forum_manager.archive_forum_post(event.id, archive_category)
+            success = await forum_manager.archive_forum_post(event.id)
             if success and callback:
-                await callback(event, archive_category)
+                await callback(event)
             
             # Remove the task from tracking
             if event.id in self.scheduled_tasks:
@@ -131,11 +109,11 @@ class ArchiveScheduler:
         forum_manager, 
         callback
     ):
-        """Archive a forum post immediately (e.g., when event is deleted)."""
+        """Close a forum post immediately (e.g., when event is deleted)."""
         # Cancel any scheduled task
         self.cancel_archive(event.id)
         
         # Archive immediately
         asyncio.create_task(self._archive_task(event, forum_manager, callback))
-        logger.info(f"Archiving event {event.id} immediately")
+        logger.info(f"Closing forum post for event {event.id} immediately")
 
