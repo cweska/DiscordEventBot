@@ -9,7 +9,7 @@ from event_handler import EventHandler
 @pytest.mark.asyncio
 async def test_get_event_participants_success(mock_scheduled_event, sample_participants):
     """Test getting event participants successfully."""
-    handler = EventHandler(MagicMock(), MagicMock())
+    handler = EventHandler(MagicMock(), MagicMock(), None, None)
     
     # Mock the users iterator - make it an async iterator
     async def users_generator():
@@ -28,7 +28,7 @@ async def test_get_event_participants_success(mock_scheduled_event, sample_parti
 @pytest.mark.asyncio
 async def test_get_event_participants_empty(mock_scheduled_event):
     """Test getting participants when event has none."""
-    handler = EventHandler(MagicMock(), MagicMock())
+    handler = EventHandler(MagicMock(), MagicMock(), None, None)
     
     async def empty_users():
         if False:
@@ -44,7 +44,7 @@ async def test_get_event_participants_empty(mock_scheduled_event):
 @pytest.mark.asyncio
 async def test_get_event_participants_error(mock_scheduled_event):
     """Test handling error when getting participants."""
-    handler = EventHandler(MagicMock(), MagicMock())
+    handler = EventHandler(MagicMock(), MagicMock(), None, None)
     
     def error_users():
         raise Exception("API Error")
@@ -63,7 +63,8 @@ async def test_on_scheduled_event_create_success(mock_scheduled_event, sample_pa
     forum_manager = MagicMock()
     archive_scheduler = MagicMock()
     calendar_manager = MagicMock()
-    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager)
+    reminder_scheduler = MagicMock()
+    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager, reminder_scheduler)
     
     # Mock getting participants
     async def users_generator():
@@ -85,6 +86,10 @@ async def test_on_scheduled_event_create_success(mock_scheduled_event, sample_pa
         "https://calendar.google.com/link"
     )
     archive_scheduler.schedule_archive.assert_called_once()
+    reminder_scheduler.schedule_reminders.assert_called_once_with(
+        mock_scheduled_event,
+        handler.get_event_participants
+    )
 
 
 @pytest.mark.asyncio
@@ -92,7 +97,7 @@ async def test_on_scheduled_event_create_without_calendar(mock_scheduled_event, 
     """Test handling event creation without calendar manager."""
     forum_manager = MagicMock()
     archive_scheduler = MagicMock()
-    handler = EventHandler(forum_manager, archive_scheduler, None)
+    handler = EventHandler(forum_manager, archive_scheduler, None, None)
     
     async def users_generator():
         for participant in sample_participants:
@@ -117,7 +122,7 @@ async def test_on_scheduled_event_create_forum_failure(mock_scheduled_event, sam
     """Test handling event creation when forum post creation fails."""
     forum_manager = MagicMock()
     archive_scheduler = MagicMock()
-    handler = EventHandler(forum_manager, archive_scheduler, None)
+    handler = EventHandler(forum_manager, archive_scheduler, None, None)
     
     async def subscribers_generator():
         for participant in sample_participants:
@@ -141,7 +146,8 @@ async def test_on_scheduled_event_update(mock_scheduled_event, sample_participan
     forum_manager = MagicMock()
     archive_scheduler = MagicMock()
     calendar_manager = MagicMock()
-    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager)
+    reminder_scheduler = MagicMock()
+    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager, reminder_scheduler)
     
     # Create before and after events with same name (no name change)
     before_event = MagicMock(spec=discord.ScheduledEvent)
@@ -186,7 +192,8 @@ async def test_on_scheduled_event_update_name_change(mock_scheduled_event, sampl
     forum_manager = MagicMock()
     archive_scheduler = MagicMock()
     calendar_manager = MagicMock()
-    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager)
+    reminder_scheduler = MagicMock()
+    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager, reminder_scheduler)
     
     # Create before and after events with different names
     before_event = MagicMock(spec=discord.ScheduledEvent)
@@ -231,7 +238,8 @@ async def test_on_scheduled_event_update_start_time_change(mock_scheduled_event,
     forum_manager = MagicMock()
     archive_scheduler = MagicMock()
     calendar_manager = MagicMock()
-    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager)
+    reminder_scheduler = MagicMock()
+    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager, reminder_scheduler)
     
     # Create before and after events with different start times
     before_event = MagicMock(spec=discord.ScheduledEvent)
@@ -265,6 +273,13 @@ async def test_on_scheduled_event_update_start_time_change(mock_scheduled_event,
     # Should log start time change
     assert any("start time changed" in record.message.lower() for record in caplog.records)
     
+    # Reminders should be rescheduled when start time changes
+    reminder_scheduler.cancel_reminders.assert_called_once_with(after_event.id)
+    reminder_scheduler.schedule_reminders.assert_called_once_with(
+        after_event,
+        handler.get_event_participants
+    )
+    
     calendar_manager.generate_calendar_link_for_update.assert_called_once_with(after_event)
     forum_manager.update_forum_post.assert_called_once()
     archive_scheduler.schedule_archive.assert_called_once()
@@ -276,19 +291,23 @@ async def test_on_scheduled_event_update_end_time_change(mock_scheduled_event, s
     forum_manager = MagicMock()
     archive_scheduler = MagicMock()
     calendar_manager = MagicMock()
-    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager)
+    reminder_scheduler = MagicMock()
+    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager, reminder_scheduler)
     
     # Create before and after events with different end times
+    # Use the same start_time object to ensure they're exactly equal
+    same_start_time = datetime.now(timezone.utc) + timedelta(hours=1)
+    
     before_event = MagicMock(spec=discord.ScheduledEvent)
     before_event.id = mock_scheduled_event.id
     before_event.name = "Test Event"
-    before_event.start_time = datetime.now(timezone.utc) + timedelta(hours=1)
+    before_event.start_time = same_start_time
     before_event.end_time = datetime.now(timezone.utc) + timedelta(hours=2)
     
     after_event = MagicMock(spec=discord.ScheduledEvent)
     after_event.id = mock_scheduled_event.id
     after_event.name = "Test Event"  # Same name
-    after_event.start_time = datetime.now(timezone.utc) + timedelta(hours=1)  # Same start time
+    after_event.start_time = same_start_time  # Same start time object
     after_event.end_time = datetime.now(timezone.utc) + timedelta(hours=4)  # Different end time
     
     async def users_generator():
@@ -310,6 +329,10 @@ async def test_on_scheduled_event_update_end_time_change(mock_scheduled_event, s
     # Should log end time change
     assert any("end time changed" in record.message.lower() for record in caplog.records)
     
+    # Reminders should NOT be rescheduled when only end time changes (not start time)
+    reminder_scheduler.cancel_reminders.assert_not_called()
+    reminder_scheduler.schedule_reminders.assert_not_called()
+    
     calendar_manager.generate_calendar_link_for_update.assert_called_once_with(after_event)
     forum_manager.update_forum_post.assert_called_once()
     archive_scheduler.schedule_archive.assert_called_once()
@@ -321,13 +344,16 @@ async def test_on_scheduled_event_delete(mock_scheduled_event):
     forum_manager = MagicMock()
     archive_scheduler = MagicMock()
     calendar_manager = MagicMock()
-    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager)
+    reminder_scheduler = MagicMock()
+    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager, reminder_scheduler)
     
     archive_scheduler.archive_immediately = MagicMock()
     
     await handler.on_scheduled_event_delete(mock_scheduled_event)
     
-    # Calendar manager no longer needs to delete events (we just generate links)
+    # Should cancel reminders
+    reminder_scheduler.cancel_reminders.assert_called_once_with(mock_scheduled_event.id)
+    
     archive_scheduler.archive_immediately.assert_called_once_with(
         mock_scheduled_event,
         forum_manager,
@@ -340,7 +366,7 @@ async def test_on_scheduled_event_user_add(mock_scheduled_event, sample_particip
     """Test handling user joining an event."""
     forum_manager = MagicMock()
     archive_scheduler = MagicMock()
-    handler = EventHandler(forum_manager, archive_scheduler)
+    handler = EventHandler(forum_manager, archive_scheduler, None, None)
     
     # Add the new user to participants
     updated_participants = sample_participants + [mock_user]
@@ -370,7 +396,7 @@ async def test_on_scheduled_event_user_remove(mock_scheduled_event, sample_parti
     """Test handling user leaving an event."""
     forum_manager = MagicMock()
     archive_scheduler = MagicMock()
-    handler = EventHandler(forum_manager, archive_scheduler)
+    handler = EventHandler(forum_manager, archive_scheduler, None, None)
     
     # Remove one user from participants
     updated_participants = sample_participants[1:]  # Remove first participant
@@ -398,7 +424,7 @@ async def test_on_scheduled_event_user_remove(mock_scheduled_event, sample_parti
 @pytest.mark.asyncio
 async def test_on_archive_complete(mock_scheduled_event):
     """Test archive completion callback."""
-    handler = EventHandler(MagicMock(), MagicMock())
+    handler = EventHandler(MagicMock(), MagicMock(), None, None)
     
     # This should just log, so we just verify it doesn't raise
     await handler._on_archive_complete(mock_scheduled_event)

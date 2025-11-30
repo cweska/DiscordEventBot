@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class EventHandler:
     """Handles Discord scheduled event lifecycle events."""
     
-    def __init__(self, forum_manager, archive_scheduler, calendar_manager=None):
+    def __init__(self, forum_manager, archive_scheduler, calendar_manager=None, reminder_scheduler=None):
         """
         Initialize the EventHandler.
         
@@ -17,10 +17,12 @@ class EventHandler:
             forum_manager: ForumManager instance
             archive_scheduler: ArchiveScheduler instance
             calendar_manager: Optional CalendarManager instance
+            reminder_scheduler: Optional ReminderScheduler instance
         """
         self.forum_manager = forum_manager
         self.archive_scheduler = archive_scheduler
         self.calendar_manager = calendar_manager
+        self.reminder_scheduler = reminder_scheduler
     
     async def get_event_participants(self, event: discord.ScheduledEvent) -> Optional[list]:
         """
@@ -77,6 +79,14 @@ class EventHandler:
                     self.forum_manager, 
                     self._on_archive_complete
                 )
+                
+                # Schedule reminders if reminder scheduler is configured
+                if self.reminder_scheduler:
+                    self.reminder_scheduler.schedule_reminders(
+                        event,
+                        self.get_event_participants
+                    )
+                
                 logger.info(f"Successfully set up forum post for event {event.id}")
             else:
                 logger.error(f"Failed to create forum post for event {event.id}")
@@ -105,6 +115,14 @@ class EventHandler:
                 before_str = before.start_time.strftime('%Y-%m-%d %H:%M:%S UTC') if before.start_time else 'None'
                 after_str = after.start_time.strftime('%Y-%m-%d %H:%M:%S UTC') if after.start_time else 'None'
                 logger.info(f"Event start time changed from '{before_str}' to '{after_str}' (ID: {after.id})")
+                
+                # Reschedule reminders if start time changed
+                if self.reminder_scheduler:
+                    self.reminder_scheduler.cancel_reminders(after.id)
+                    self.reminder_scheduler.schedule_reminders(
+                        after,
+                        self.get_event_participants
+                    )
             
             # Check if end time changed
             if before.end_time != after.end_time:
@@ -146,6 +164,10 @@ class EventHandler:
         """
         try:
             logger.info(f"Event deleted: {event.name} (ID: {event.id})")
+            
+            # Cancel any scheduled reminders
+            if self.reminder_scheduler:
+                self.reminder_scheduler.cancel_reminders(event.id)
             
             # Archive immediately
             self.archive_scheduler.archive_immediately(

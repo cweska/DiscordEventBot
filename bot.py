@@ -8,6 +8,7 @@ from forum_manager import ForumManager
 from archive_scheduler import ArchiveScheduler
 from event_handler import EventHandler
 from calendar_manager import CalendarManager
+from reminder_scheduler import ReminderScheduler
 
 # Configure logging
 logging.basicConfig(
@@ -44,10 +45,22 @@ class EventBot(commands.Bot):
         self.archive_scheduler = ArchiveScheduler(
             Config.ARCHIVE_DELAY_HOURS
         )
+        
+        # Initialize reminder scheduler if configured
+        reminder_scheduler = None
+        if Config.REMINDER_CHANNEL_ID:
+            reminder_times = Config.parse_reminder_times()
+            if reminder_times:
+                reminder_scheduler = ReminderScheduler(Config.REMINDER_CHANNEL_ID, reminder_times)
+                logger.info(f"Reminder system enabled: {len(reminder_times)} reminder time(s) configured")
+            else:
+                logger.warning("REMINDER_CHANNEL_ID is set but REMINDER_TIMES is empty or invalid. Reminders disabled.")
+        
         self.event_handler = EventHandler(
             self.forum_manager,
             self.archive_scheduler,
-            calendar_manager
+            calendar_manager,
+            reminder_scheduler
         )
     
     async def setup_hook(self):

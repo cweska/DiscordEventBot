@@ -233,7 +233,7 @@ async def test_end_to_end_event_lifecycle(mock_config):
         
         forum_manager = ForumManager(987654321, None)  # No calendar manager for this test
         archive_scheduler = ArchiveScheduler(24)
-        event_handler = EventHandler(forum_manager, archive_scheduler, None)
+        event_handler = EventHandler(forum_manager, archive_scheduler, None, None)  # No reminder scheduler for this test
         
         # Create mock event
         mock_event = MagicMock(spec=discord.ScheduledEvent)
