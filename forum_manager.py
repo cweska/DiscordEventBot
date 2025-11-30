@@ -21,6 +21,7 @@ class ForumManager:
         self.event_posts: Dict[int, discord.Thread] = {}  # event_id -> thread mapping
         self.calendar_manager = calendar_manager
         self.calendar_links: Dict[int, str] = {}  # event_id -> calendar_link mapping
+        self.cached_participants: Dict[int, list] = {}  # event_id -> last known participants
     
     async def get_forum_channel(self, guild: discord.Guild) -> Optional[discord.ForumChannel]:
         """Get the forum channel from the guild."""
@@ -120,6 +121,10 @@ class ForumManager:
             if calendar_link:
                 self.calendar_links[event.id] = calendar_link
             
+            # Cache participants
+            if participants:
+                self.cached_participants[event.id] = participants
+            
             # Format the content
             content = self.format_event_content(event, participants, calendar_link)
             
@@ -191,6 +196,15 @@ class ForumManager:
                     calendar_link = self.calendar_manager.generate_calendar_link(event)
                     if calendar_link:
                         self.calendar_links[event.id] = calendar_link
+            
+            # If participants list is empty but we have cached participants, use cached ones
+            # This prevents clearing participants when event.users() fails
+            if not participants and event.id in self.cached_participants:
+                logger.warning(f"Participants list is empty for event {event.id}, using cached participants")
+                participants = self.cached_participants[event.id]
+            elif participants:
+                # Update cache with new participants list
+                self.cached_participants[event.id] = participants
             
             # Get the first message (the post content)
             # For forum posts, the starter message is the first message in the thread

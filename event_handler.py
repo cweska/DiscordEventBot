@@ -22,7 +22,7 @@ class EventHandler:
         self.archive_scheduler = archive_scheduler
         self.calendar_manager = calendar_manager
     
-    async def get_event_participants(self, event: discord.ScheduledEvent) -> list:
+    async def get_event_participants(self, event: discord.ScheduledEvent) -> Optional[list]:
         """
         Get the list of users subscribed to an event.
         
@@ -30,7 +30,8 @@ class EventHandler:
             event: The scheduled event
             
         Returns:
-            List of user objects who are subscribed to the event
+            List of user objects who are subscribed to the event, or None if fetching failed
+            (None allows the caller to decide whether to use cached values)
         """
         try:
             participants = []
@@ -39,7 +40,9 @@ class EventHandler:
             return participants
         except Exception as e:
             logger.error(f"Error getting participants for event {event.id}: {e}")
-            return []
+            # Return None instead of empty list to indicate failure
+            # This allows callers to distinguish between "no participants" and "fetch failed"
+            return None
     
     async def on_scheduled_event_create(self, event: discord.ScheduledEvent):
         """
@@ -91,15 +94,19 @@ class EventHandler:
         try:
             logger.info(f"Event updated: {event.name} (ID: {event.id})")
             
-            # Get current participants
+            # Get current participants (may return None if fetch fails)
             participants = await self.get_event_participants(event)
+            
+            # If fetching participants failed, use empty list and let update_forum_post use cached values
+            if participants is None:
+                participants = []
             
             # Regenerate calendar link if calendar manager is available
             calendar_link = None
             if self.calendar_manager:
                 calendar_link = self.calendar_manager.generate_calendar_link_for_update(event)
             
-            # Update forum post
+            # Update forum post (will use cached participants if participants list is empty)
             await self.forum_manager.update_forum_post(event, participants, calendar_link)
             
             # Reschedule archive if end time changed
@@ -147,8 +154,12 @@ class EventHandler:
         try:
             logger.info(f"User {user.name} subscribed to event {event.name} (ID: {event.id})")
             
-            # Get updated participants
+            # Get updated participants (must succeed for user add/remove events)
             participants = await self.get_event_participants(event)
+            if participants is None:
+                # If fetch failed, log error but try to continue with cached participants
+                logger.warning(f"Failed to fetch participants for event {event.id} after user add, using cached")
+                participants = self.forum_manager.cached_participants.get(event.id, [])
             
             # Preserve existing calendar link (don't regenerate, just use existing)
             calendar_link = self.forum_manager.calendar_links.get(event.id)
@@ -177,8 +188,12 @@ class EventHandler:
         try:
             logger.info(f"User {user.name} unsubscribed from event {event.name} (ID: {event.id})")
             
-            # Get updated participants
+            # Get updated participants (must succeed for user add/remove events)
             participants = await self.get_event_participants(event)
+            if participants is None:
+                # If fetch failed, log error but try to continue with cached participants
+                logger.warning(f"Failed to fetch participants for event {event.id} after user remove, using cached")
+                participants = self.forum_manager.cached_participants.get(event.id, [])
             
             # Preserve existing calendar link (don't regenerate, just use existing)
             calendar_link = self.forum_manager.calendar_links.get(event.id)

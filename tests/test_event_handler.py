@@ -52,7 +52,8 @@ async def test_get_event_participants_error(mock_scheduled_event):
     
     result = await handler.get_event_participants(mock_scheduled_event)
     
-    assert result == []
+    # Should return None to indicate failure (not empty list)
+    assert result is None
 
 
 @pytest.mark.asyncio
