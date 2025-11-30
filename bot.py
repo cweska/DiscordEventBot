@@ -87,7 +87,8 @@ class EventBot(commands.Bot):
                         await self.event_handler.on_scheduled_event_create(event)
                     else:
                         # Update existing forum post and reschedule archive
-                        await self.event_handler.on_scheduled_event_update(event)
+                        # For existing events on startup, use the same event for both before and after
+                        await self.event_handler.on_scheduled_event_update(event, event)
             except Exception as e:
                 logger.error(f"Error processing existing events for guild {guild.id}: {e}")
     
@@ -97,8 +98,8 @@ class EventBot(commands.Bot):
     
     async def on_scheduled_event_update(self, before: discord.ScheduledEvent, after: discord.ScheduledEvent):
         """Called when a scheduled event is updated."""
-        # Discord passes both 'before' and 'after' states, we use 'after' (the updated event)
-        await self.event_handler.on_scheduled_event_update(after)
+        # Discord passes both 'before' and 'after' states, pass both to handler
+        await self.event_handler.on_scheduled_event_update(before, after)
     
     async def on_scheduled_event_delete(self, event: discord.ScheduledEvent):
         """Called when a scheduled event is deleted."""

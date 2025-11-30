@@ -81,15 +81,36 @@ async def test_process_existing_events_with_existing_thread(mock_bot, mock_sched
             yield
     mock_scheduled_event.users = lambda: empty_users()
     
+    # Mock get_event_participants to avoid issues with users() iteration
+    mock_bot.event_handler.get_event_participants = AsyncMock(return_value=[])
+    
     # Mock all dependencies so the real handler can run
     mock_bot.forum_manager.get_thread = MagicMock(return_value=mock_thread)
     mock_bot.forum_manager.update_forum_post = AsyncMock(return_value=True)
+    mock_bot.forum_manager.update_thread_name = AsyncMock(return_value=True)
     mock_bot.archive_scheduler.schedule_archive = MagicMock()
+    # Mock calendar manager if it exists
+    if mock_bot.event_handler.calendar_manager:
+        mock_bot.event_handler.calendar_manager.generate_calendar_link_for_update = MagicMock(return_value="https://calendar.google.com/test")
     
-    with patch.object(mock_bot.event_handler, 'on_scheduled_event_update', new_callable=AsyncMock) as mock_update:
-        await mock_bot.process_existing_events()
-        
-        mock_update.assert_called_once_with(mock_scheduled_event)
+    # Track calls to on_scheduled_event_update
+    original_update = mock_bot.event_handler.on_scheduled_event_update
+    call_count = 0
+    call_args_list = []
+    
+    async def tracked_update(before, after):
+        nonlocal call_count, call_args_list
+        call_count += 1
+        call_args_list.append((before, after))
+        return await original_update(before, after)
+    
+    mock_bot.event_handler.on_scheduled_event_update = tracked_update
+    
+    await mock_bot.process_existing_events()
+    
+    # When processing existing events, both before and after are the same event
+    assert call_count == 1, f"Expected on_scheduled_event_update to be called once, but it was called {call_count} times"
+    assert call_args_list[0] == (mock_scheduled_event, mock_scheduled_event)
 
 
 @pytest.mark.asyncio
@@ -106,19 +127,39 @@ async def test_process_existing_events_finds_thread(mock_bot, mock_scheduled_eve
             yield
     mock_scheduled_event.users = lambda: empty_users()
     
+    # Mock get_event_participants to avoid issues with users() iteration
+    mock_bot.event_handler.get_event_participants = AsyncMock(return_value=[])
+    
     # Mock all dependencies so the real handler can run
     mock_bot.forum_manager.get_thread = MagicMock(return_value=None)
     mock_bot.forum_manager.find_existing_thread = AsyncMock(return_value=mock_thread)
     mock_bot.forum_manager.update_forum_post = AsyncMock(return_value=True)
+    mock_bot.forum_manager.update_thread_name = AsyncMock(return_value=True)
     mock_bot.archive_scheduler.schedule_archive = MagicMock()
+    # Mock calendar manager if it exists
+    if mock_bot.event_handler.calendar_manager:
+        mock_bot.event_handler.calendar_manager.generate_calendar_link_for_update = MagicMock(return_value="https://calendar.google.com/test")
     
-    with patch.object(mock_bot.event_handler, 'on_scheduled_event_update', new_callable=AsyncMock) as mock_update:
-        await mock_bot.process_existing_events()
-        
-        mock_update.assert_called_once_with(mock_scheduled_event)
-        # Should have added thread to mapping
-        assert mock_bot.forum_manager.event_posts.get(mock_scheduled_event.id) == mock_thread
-        mock_bot.event_handler.on_scheduled_event_update.assert_called_once_with(mock_scheduled_event)
+    # Track calls to on_scheduled_event_update
+    original_update = mock_bot.event_handler.on_scheduled_event_update
+    call_count = 0
+    call_args_list = []
+    
+    async def tracked_update(before, after):
+        nonlocal call_count, call_args_list
+        call_count += 1
+        call_args_list.append((before, after))
+        return await original_update(before, after)
+    
+    mock_bot.event_handler.on_scheduled_event_update = tracked_update
+    
+    await mock_bot.process_existing_events()
+    
+    # When processing existing events, both before and after are the same event
+    assert call_count == 1, f"Expected on_scheduled_event_update to be called once, but it was called {call_count} times"
+    assert call_args_list[0] == (mock_scheduled_event, mock_scheduled_event)
+    # Should have added thread to mapping
+    assert mock_bot.forum_manager.event_posts.get(mock_scheduled_event.id) == mock_thread
 
 
 @pytest.mark.asyncio
@@ -136,9 +177,14 @@ async def test_on_scheduled_event_update(mock_bot, mock_scheduled_event):
     """Test bot's event update handler."""
     mock_bot.event_handler.on_scheduled_event_update = AsyncMock()
     
-    await mock_bot.on_scheduled_event_update(mock_scheduled_event)
+    # Create a before event for the test
+    before_event = MagicMock(spec=discord.ScheduledEvent)
+    before_event.id = mock_scheduled_event.id
+    before_event.name = "Old Name"
     
-    mock_bot.event_handler.on_scheduled_event_update.assert_called_once_with(mock_scheduled_event)
+    await mock_bot.on_scheduled_event_update(before_event, mock_scheduled_event)
+    
+    mock_bot.event_handler.on_scheduled_event_update.assert_called_once_with(before_event, mock_scheduled_event)
 
 
 @pytest.mark.asyncio
@@ -253,7 +299,8 @@ async def test_end_to_end_event_lifecycle(mock_config):
         
         # 4. Update event
         mock_event.description = "Updated description"
-        await event_handler.on_scheduled_event_update(mock_event)
+        # For update test, use same event for both before and after
+        await event_handler.on_scheduled_event_update(mock_event, mock_event)
         
         # 5. Delete event (archive immediately)
         mock_archive_category = MagicMock(spec=discord.CategoryChannel)

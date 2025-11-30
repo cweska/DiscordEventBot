@@ -2,6 +2,7 @@
 import pytest
 import discord
 from unittest.mock import AsyncMock, MagicMock
+from datetime import datetime, timezone, timedelta
 from event_handler import EventHandler
 
 
@@ -142,23 +143,175 @@ async def test_on_scheduled_event_update(mock_scheduled_event, sample_participan
     calendar_manager = MagicMock()
     handler = EventHandler(forum_manager, archive_scheduler, calendar_manager)
     
+    # Create before and after events with same name (no name change)
+    before_event = MagicMock(spec=discord.ScheduledEvent)
+    before_event.id = mock_scheduled_event.id
+    before_event.name = "Test Event"
+    before_event.start_time = mock_scheduled_event.start_time
+    before_event.end_time = mock_scheduled_event.end_time
+    
+    after_event = MagicMock(spec=discord.ScheduledEvent)
+    after_event.id = mock_scheduled_event.id
+    after_event.name = "Test Event"  # Same name
+    after_event.start_time = mock_scheduled_event.start_time
+    after_event.end_time = mock_scheduled_event.end_time
+    
     async def users_generator():
         for participant in sample_participants:
             yield participant
     
-    mock_scheduled_event.users = lambda: users_generator()
+    after_event.users = lambda: users_generator()
     
     forum_manager.update_forum_post = AsyncMock(return_value=True)
+    forum_manager.update_thread_name = AsyncMock(return_value=True)
     calendar_manager.generate_calendar_link_for_update = MagicMock(return_value="https://calendar.google.com/updated")
     
-    await handler.on_scheduled_event_update(mock_scheduled_event)
+    await handler.on_scheduled_event_update(before_event, after_event)
     
-    calendar_manager.generate_calendar_link_for_update.assert_called_once_with(mock_scheduled_event)
+    # Thread name should NOT be updated when name doesn't change
+    forum_manager.update_thread_name.assert_not_called()
+    
+    calendar_manager.generate_calendar_link_for_update.assert_called_once_with(after_event)
     forum_manager.update_forum_post.assert_called_once_with(
-        mock_scheduled_event,
+        after_event,
         sample_participants,
         "https://calendar.google.com/updated"
     )
+    archive_scheduler.schedule_archive.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_on_scheduled_event_update_name_change(mock_scheduled_event, sample_participants):
+    """Test handling event update when name changes."""
+    forum_manager = MagicMock()
+    archive_scheduler = MagicMock()
+    calendar_manager = MagicMock()
+    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager)
+    
+    # Create before and after events with different names
+    before_event = MagicMock(spec=discord.ScheduledEvent)
+    before_event.id = mock_scheduled_event.id
+    before_event.name = "Old Event Name"
+    before_event.start_time = mock_scheduled_event.start_time
+    before_event.end_time = mock_scheduled_event.end_time
+    
+    after_event = MagicMock(spec=discord.ScheduledEvent)
+    after_event.id = mock_scheduled_event.id
+    after_event.name = "New Event Name"  # Different name
+    after_event.start_time = mock_scheduled_event.start_time
+    after_event.end_time = mock_scheduled_event.end_time
+    
+    async def users_generator():
+        for participant in sample_participants:
+            yield participant
+    
+    after_event.users = lambda: users_generator()
+    
+    forum_manager.update_forum_post = AsyncMock(return_value=True)
+    forum_manager.update_thread_name = AsyncMock(return_value=True)
+    calendar_manager.generate_calendar_link_for_update = MagicMock(return_value="https://calendar.google.com/updated")
+    
+    await handler.on_scheduled_event_update(before_event, after_event)
+    
+    # Thread name SHOULD be updated when name changes
+    forum_manager.update_thread_name.assert_called_once_with(after_event.id, "New Event Name")
+    
+    calendar_manager.generate_calendar_link_for_update.assert_called_once_with(after_event)
+    forum_manager.update_forum_post.assert_called_once_with(
+        after_event,
+        sample_participants,
+        "https://calendar.google.com/updated"
+    )
+    archive_scheduler.schedule_archive.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_on_scheduled_event_update_start_time_change(mock_scheduled_event, sample_participants, caplog):
+    """Test handling event update when start time changes."""
+    forum_manager = MagicMock()
+    archive_scheduler = MagicMock()
+    calendar_manager = MagicMock()
+    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager)
+    
+    # Create before and after events with different start times
+    before_event = MagicMock(spec=discord.ScheduledEvent)
+    before_event.id = mock_scheduled_event.id
+    before_event.name = "Test Event"
+    before_event.start_time = datetime.now(timezone.utc) + timedelta(hours=1)
+    before_event.end_time = datetime.now(timezone.utc) + timedelta(hours=2)
+    
+    after_event = MagicMock(spec=discord.ScheduledEvent)
+    after_event.id = mock_scheduled_event.id
+    after_event.name = "Test Event"  # Same name
+    after_event.start_time = datetime.now(timezone.utc) + timedelta(hours=3)  # Different start time
+    after_event.end_time = datetime.now(timezone.utc) + timedelta(hours=2)  # Same end time
+    
+    async def users_generator():
+        for participant in sample_participants:
+            yield participant
+    
+    after_event.users = lambda: users_generator()
+    
+    forum_manager.update_forum_post = AsyncMock(return_value=True)
+    forum_manager.update_thread_name = AsyncMock(return_value=True)
+    calendar_manager.generate_calendar_link_for_update = MagicMock(return_value="https://calendar.google.com/updated")
+    
+    with caplog.at_level("INFO"):
+        await handler.on_scheduled_event_update(before_event, after_event)
+    
+    # Thread name should NOT be updated when name doesn't change
+    forum_manager.update_thread_name.assert_not_called()
+    
+    # Should log start time change
+    assert any("start time changed" in record.message.lower() for record in caplog.records)
+    
+    calendar_manager.generate_calendar_link_for_update.assert_called_once_with(after_event)
+    forum_manager.update_forum_post.assert_called_once()
+    archive_scheduler.schedule_archive.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_on_scheduled_event_update_end_time_change(mock_scheduled_event, sample_participants, caplog):
+    """Test handling event update when end time changes."""
+    forum_manager = MagicMock()
+    archive_scheduler = MagicMock()
+    calendar_manager = MagicMock()
+    handler = EventHandler(forum_manager, archive_scheduler, calendar_manager)
+    
+    # Create before and after events with different end times
+    before_event = MagicMock(spec=discord.ScheduledEvent)
+    before_event.id = mock_scheduled_event.id
+    before_event.name = "Test Event"
+    before_event.start_time = datetime.now(timezone.utc) + timedelta(hours=1)
+    before_event.end_time = datetime.now(timezone.utc) + timedelta(hours=2)
+    
+    after_event = MagicMock(spec=discord.ScheduledEvent)
+    after_event.id = mock_scheduled_event.id
+    after_event.name = "Test Event"  # Same name
+    after_event.start_time = datetime.now(timezone.utc) + timedelta(hours=1)  # Same start time
+    after_event.end_time = datetime.now(timezone.utc) + timedelta(hours=4)  # Different end time
+    
+    async def users_generator():
+        for participant in sample_participants:
+            yield participant
+    
+    after_event.users = lambda: users_generator()
+    
+    forum_manager.update_forum_post = AsyncMock(return_value=True)
+    forum_manager.update_thread_name = AsyncMock(return_value=True)
+    calendar_manager.generate_calendar_link_for_update = MagicMock(return_value="https://calendar.google.com/updated")
+    
+    with caplog.at_level("INFO"):
+        await handler.on_scheduled_event_update(before_event, after_event)
+    
+    # Thread name should NOT be updated when name doesn't change
+    forum_manager.update_thread_name.assert_not_called()
+    
+    # Should log end time change
+    assert any("end time changed" in record.message.lower() for record in caplog.records)
+    
+    calendar_manager.generate_calendar_link_for_update.assert_called_once_with(after_event)
+    forum_manager.update_forum_post.assert_called_once()
     archive_scheduler.schedule_archive.assert_called_once()
 
 

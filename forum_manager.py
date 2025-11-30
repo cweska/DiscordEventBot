@@ -236,6 +236,44 @@ class ForumManager:
             logger.error(f"Unexpected error updating forum post: {e}")
             return False
     
+    async def update_thread_name(self, event_id: int, new_name: str) -> bool:
+        """
+        Update the name of a forum thread when the event name changes.
+        
+        Args:
+            event_id: The ID of the scheduled event
+            new_name: The new name for the thread
+            
+        Returns:
+            True if update was successful, False otherwise
+        """
+        try:
+            thread = self.event_posts.get(event_id)
+            if not thread:
+                logger.warning(f"No forum thread found for event {event_id}, cannot update thread name")
+                return False
+            
+            # Discord has a 100 character limit for channel/thread names
+            # Truncate if necessary
+            if len(new_name) > 100:
+                logger.warning(f"Thread name '{new_name}' exceeds 100 characters, truncating")
+                new_name = new_name[:100]
+            
+            # Update the thread name
+            await thread.edit(name=new_name)
+            logger.info(f"Updated thread name for event {event_id} to '{new_name}'")
+            return True
+            
+        except discord.Forbidden:
+            logger.error(f"Bot lacks permissions to update thread name for event {event_id}")
+            return False
+        except discord.HTTPException as e:
+            logger.error(f"HTTP error updating thread name: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error updating thread name: {e}")
+            return False
+    
     async def archive_forum_post(
         self, 
         event_id: int, 

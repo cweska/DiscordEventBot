@@ -84,18 +84,36 @@ class EventHandler:
         except Exception as e:
             logger.error(f"Error handling event creation: {e}")
     
-    async def on_scheduled_event_update(self, event: discord.ScheduledEvent):
+    async def on_scheduled_event_update(self, before: discord.ScheduledEvent, after: discord.ScheduledEvent):
         """
         Handle when a scheduled event is updated.
         
         Args:
-            event: The updated scheduled event
+            before: The scheduled event before the update
+            after: The scheduled event after the update
         """
         try:
-            logger.info(f"Event updated: {event.name} (ID: {event.id})")
+            logger.info(f"Event updated: {after.name} (ID: {after.id})")
+            
+            # Check if event name changed and update thread name if it did
+            if before.name != after.name:
+                logger.info(f"Event name changed from '{before.name}' to '{after.name}' (ID: {after.id})")
+                await self.forum_manager.update_thread_name(after.id, after.name)
+            
+            # Check if start time changed
+            if before.start_time != after.start_time:
+                before_str = before.start_time.strftime('%Y-%m-%d %H:%M:%S UTC') if before.start_time else 'None'
+                after_str = after.start_time.strftime('%Y-%m-%d %H:%M:%S UTC') if after.start_time else 'None'
+                logger.info(f"Event start time changed from '{before_str}' to '{after_str}' (ID: {after.id})")
+            
+            # Check if end time changed
+            if before.end_time != after.end_time:
+                before_str = before.end_time.strftime('%Y-%m-%d %H:%M:%S UTC') if before.end_time else 'None'
+                after_str = after.end_time.strftime('%Y-%m-%d %H:%M:%S UTC') if after.end_time else 'None'
+                logger.info(f"Event end time changed from '{before_str}' to '{after_str}' (ID: {after.id})")
             
             # Get current participants (may return None if fetch fails)
-            participants = await self.get_event_participants(event)
+            participants = await self.get_event_participants(after)
             
             # If fetching participants failed, use empty list and let update_forum_post use cached values
             if participants is None:
@@ -104,14 +122,14 @@ class EventHandler:
             # Regenerate calendar link if calendar manager is available
             calendar_link = None
             if self.calendar_manager:
-                calendar_link = self.calendar_manager.generate_calendar_link_for_update(event)
+                calendar_link = self.calendar_manager.generate_calendar_link_for_update(after)
             
             # Update forum post (will use cached participants if participants list is empty)
-            await self.forum_manager.update_forum_post(event, participants, calendar_link)
+            await self.forum_manager.update_forum_post(after, participants, calendar_link)
             
             # Reschedule archive if end time changed
             self.archive_scheduler.schedule_archive(
-                event, 
+                after, 
                 self.forum_manager, 
                 self._on_archive_complete
             )

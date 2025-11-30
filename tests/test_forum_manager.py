@@ -264,6 +264,73 @@ async def test_archive_forum_post_permission_error(mock_thread, mock_archive_cat
 
 
 @pytest.mark.asyncio
+async def test_update_thread_name_success(mock_thread):
+    """Test successfully updating thread name."""
+    manager = ForumManager(987654321)
+    event_id = 444555666
+    manager.event_posts[event_id] = mock_thread
+    mock_thread.edit = AsyncMock()
+    
+    result = await manager.update_thread_name(event_id, "New Event Name")
+    
+    assert result is True
+    mock_thread.edit.assert_called_once_with(name="New Event Name")
+
+
+@pytest.mark.asyncio
+async def test_update_thread_name_not_found():
+    """Test updating thread name when thread doesn't exist."""
+    manager = ForumManager(987654321)
+    
+    result = await manager.update_thread_name(999999999, "New Event Name")
+    
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_update_thread_name_permission_error(mock_thread):
+    """Test updating thread name with permission error."""
+    manager = ForumManager(987654321)
+    event_id = 444555666
+    manager.event_posts[event_id] = mock_thread
+    mock_thread.edit = AsyncMock(side_effect=discord.Forbidden(MagicMock(), "No permission"))
+    
+    result = await manager.update_thread_name(event_id, "New Event Name")
+    
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_update_thread_name_http_error(mock_thread):
+    """Test updating thread name with HTTP error."""
+    manager = ForumManager(987654321)
+    event_id = 444555666
+    manager.event_posts[event_id] = mock_thread
+    mock_thread.edit = AsyncMock(side_effect=discord.HTTPException(MagicMock(), "HTTP error"))
+    
+    result = await manager.update_thread_name(event_id, "New Event Name")
+    
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_update_thread_name_truncation(mock_thread):
+    """Test updating thread name with name that exceeds 100 characters."""
+    manager = ForumManager(987654321)
+    event_id = 444555666
+    manager.event_posts[event_id] = mock_thread
+    mock_thread.edit = AsyncMock()
+    
+    # Create a name longer than 100 characters
+    long_name = "A" * 150
+    result = await manager.update_thread_name(event_id, long_name)
+    
+    assert result is True
+    # Should truncate to 100 characters
+    mock_thread.edit.assert_called_once_with(name="A" * 100)
+
+
+@pytest.mark.asyncio
 async def test_find_existing_thread_success(mock_guild, mock_forum_channel, mock_thread):
     """Test finding an existing thread."""
     manager = ForumManager(987654321)
