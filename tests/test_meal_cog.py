@@ -83,8 +83,10 @@ async def test_handle_modal_submission_posts_embed(tmp_path: Path):
     interaction.client = bot
     interaction.user = user
     interaction.response = MagicMock()
-    interaction.response.send_message = AsyncMock()
     interaction.response.is_done = MagicMock(return_value=False)
+    interaction.response.defer = AsyncMock()
+    interaction.followup = MagicMock()
+    interaction.followup.send = AsyncMock()
 
     photo = MagicMock(spec=discord.Attachment)
     photo.url = "http://example.com/photo.png"
@@ -106,6 +108,7 @@ async def test_handle_modal_submission_posts_embed(tmp_path: Path):
     )
 
     channel.send.assert_called_once()
-    interaction.response.send_message.assert_called_once()
+    interaction.response.defer.assert_called_once()
+    interaction.followup.send.assert_called_once()
     assert stats.data[str(user.id)]["count"] == 1
 

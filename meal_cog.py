@@ -256,9 +256,13 @@ class MealCog(commands.Cog):
     ) -> None:
         """Handle modal submission: update stats, build embed, post to channel."""
         try:
+            # Defer early to avoid the 3s Discord interaction timeout
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
+
             channel = interaction.client.get_channel(self.meal_channel_id)
             if channel is None or not isinstance(channel, discord.TextChannel):
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "I can't find the #meal-journal channel.",
                     ephemeral=True,
                 )
@@ -283,15 +287,19 @@ class MealCog(commands.Cog):
             await channel.send(embed=embed)
 
             # Acknowledge the modal submission
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"Logged **{dish_name or 'your meal'}** to <#{self.meal_channel_id}>!",
                 ephemeral=True,
             )
         except Exception as e:
             logger.error(f"Error handling meal submission: {e}")
-            if not interaction.response.is_done():
-                await interaction.response.send_message(
-                    "Sorry, something went wrong logging your meal.",
-                    ephemeral=True,
-                )
+            send_error = (
+                interaction.followup.send
+                if interaction.response.is_done()
+                else interaction.response.send_message
+            )
+            await send_error(
+                "Sorry, something went wrong logging your meal.",
+                ephemeral=True,
+            )
 
