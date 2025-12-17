@@ -27,6 +27,9 @@ class Config:
     # Reminder times before event start (comma-separated, e.g., "10m,12h,24h")
     # Supported formats: "m" for minutes, "h" for hours, "d" for days
     REMINDER_TIMES = os.getenv("REMINDER_TIMES", "").strip()
+
+    # Optional guild ID for command sync (fast propagation for testing)
+    COMMAND_GUILD_ID = int(os.getenv("COMMAND_GUILD_ID", "0")) or None
     
     @classmethod
     def parse_reminder_times(cls):

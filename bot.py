@@ -83,7 +83,13 @@ class EventBot(commands.Bot):
             )
         )
         # Sync application commands so slash commands like /cooked appear
-        await self.tree.sync()
+        if Config.COMMAND_GUILD_ID:
+            guild = discord.Object(id=Config.COMMAND_GUILD_ID)
+            synced = await self.tree.sync(guild=guild)
+            logger.info(f"Synced {len(synced)} commands to guild {Config.COMMAND_GUILD_ID}")
+        else:
+            synced = await self.tree.sync()
+            logger.info(f"Synced {len(synced)} commands globally (may take up to an hour to propagate)")
     
     async def on_ready(self):
         """Called when the bot is ready."""
