@@ -9,6 +9,8 @@ from archive_scheduler import ArchiveScheduler
 from event_handler import EventHandler
 from calendar_manager import CalendarManager
 from reminder_scheduler import ReminderScheduler
+from meal_cog import MealCog, HumorLoader, StatsManager
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -62,10 +64,32 @@ class EventBot(commands.Bot):
             calendar_manager,
             reminder_scheduler
         )
+
+        # Meal logging components (JSON persistence)
+        self.meal_channel_id = 1440141058410283039
+        self.humor_loader = HumorLoader(Path("data/humor.txt"))
+        self.stats_manager = StatsManager(Path("data/stats.json"))
     
     async def setup_hook(self):
         """Called when the bot is starting up."""
         logger.info("Bot is starting up...")
+        await self.stats_manager.load()
+        await self.add_cog(
+            MealCog(
+                self,
+                humor_loader=self.humor_loader,
+                stats_manager=self.stats_manager,
+                meal_channel_id=self.meal_channel_id,
+            )
+        )
+        # Sync application commands so slash commands like /cooked appear
+        if Config.COMMAND_GUILD_ID:
+            guild = discord.Object(id=Config.COMMAND_GUILD_ID)
+            synced = await self.tree.sync(guild=guild)
+            logger.info(f"Synced {len(synced)} commands to guild {Config.COMMAND_GUILD_ID}")
+        else:
+            synced = await self.tree.sync()
+            logger.info(f"Synced {len(synced)} commands globally (may take up to an hour to propagate)")
     
     async def on_ready(self):
         """Called when the bot is ready."""
