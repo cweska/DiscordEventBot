@@ -82,6 +82,8 @@ class EventBot(commands.Bot):
                 meal_channel_id=self.meal_channel_id,
             )
         )
+        # Sync application commands so slash commands like /cooked appear
+        await self.tree.sync()
     
     async def on_ready(self):
         """Called when the bot is ready."""
