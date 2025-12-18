@@ -142,15 +142,12 @@ def build_meal_embed(
     photo_url: str,
     user: discord.abc.User,
     stats: MealStats,
+    littlechef_emoji: Optional[str] = None,
 ) -> discord.Embed:
     """Construct the meal embed for posting."""
-    description_parts = [humor_line]
-    if note:
-        description_parts.append(f"Note: {note}")
-
     embed = discord.Embed(
         title=dish_name,
-        description="\n\n".join(description_parts),
+        description=note if note else None,
         color=discord.Color.blurple(),
     )
 
@@ -161,10 +158,19 @@ def build_meal_embed(
         avatar_url = None
 
     embed.set_author(name=user.name, icon_url=avatar_url)  # type: ignore[arg-type]
+
+    # Image
     embed.set_image(url=photo_url)
-    embed.set_footer(
-        text=f"Meals: {stats.count} | Streak: {stats.streak_current} (best {stats.streak_best})"
-    )
+
+    # Streak info with bold formatting and emojis
+    streak_text = f"**Meals: {stats.count}** 🍗 | **Streak: {stats.streak_current}** 🔥 (Best: {stats.streak_best})"
+    embed.add_field(name="\u200b", value=streak_text, inline=False)
+
+    # Humor line with littlechef emoji (or fallback chef emoji)
+    chef_prefix = littlechef_emoji if littlechef_emoji else "👨‍🍳"
+    humor_text = f"{chef_prefix} *{humor_line}*"
+    embed.add_field(name="\u200b", value=humor_text, inline=False)
+
     return embed
 
 
@@ -275,6 +281,13 @@ class MealCog(commands.Cog):
                 now=discord.utils.utcnow(),
             )
 
+            # Try to find the :littlechef: custom emoji from the guild
+            littlechef_emoji: Optional[str] = None
+            if interaction.guild:
+                emoji = discord.utils.get(interaction.guild.emojis, name="littlechef")
+                if emoji:
+                    littlechef_emoji = str(emoji)
+
             embed = build_meal_embed(
                 dish_name=dish_name or "Untitled Dish",
                 humor_line=humor_line,
@@ -282,6 +295,7 @@ class MealCog(commands.Cog):
                 photo_url=photo.url,
                 user=interaction.user,
                 stats=stats,
+                littlechef_emoji=littlechef_emoji,
             )
 
             await channel.send(embed=embed)
