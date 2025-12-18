@@ -73,6 +73,7 @@ class StatsManager:
 
     async def record_meal(self, user_id: int, now: datetime) -> MealStats:
         """Update stats for a user when they log a meal."""
+        logger.info(f"Recording meal for user {user_id}")
         today = now.astimezone(timezone.utc).date()
 
         async with self._lock:
@@ -120,6 +121,7 @@ class StatsManager:
 
             self.data[str(user_id)] = updated.__dict__
             await self._save_locked()
+            logger.info(f"Saved stats for user {user_id}: count={updated.count}, streak={updated.streak_current}")
             return updated
 
     async def _save_locked(self) -> None:
@@ -131,6 +133,7 @@ class StatsManager:
                 self.file_path.write_text(payload, encoding="utf-8")
 
             await asyncio.to_thread(_write)
+            logger.info(f"Stats saved to {self.file_path}")
         except Exception as e:
             logger.error(f"Failed to write stats file {self.file_path}: {e}")
 
