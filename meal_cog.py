@@ -137,17 +137,23 @@ class StatsManager:
 
 def build_meal_embed(
     dish_name: str,
-    humor_line: str,
     note: Optional[str],
     photo_url: str,
     user: discord.abc.User,
     stats: MealStats,
-    littlechef_emoji: Optional[str] = None,
 ) -> discord.Embed:
     """Construct the meal embed for posting."""
+    # Build description: note (if any) then streak info directly above image
+    streak_text = f"**Meals: {stats.count}** 🍗 | **Streak: {stats.streak_current}** 🔥 (Best: {stats.streak_best})"
+    
+    if note:
+        description = f"{note}\n\n{streak_text}"
+    else:
+        description = streak_text
+
     embed = discord.Embed(
         title=dish_name,
-        description=note if note else None,
+        description=description,
         color=discord.Color.blurple(),
     )
 
@@ -159,19 +165,19 @@ def build_meal_embed(
 
     embed.set_author(name=user.name, icon_url=avatar_url)  # type: ignore[arg-type]
 
-    # Image
+    # Image directly after description (no fields in between)
     embed.set_image(url=photo_url)
 
-    # Streak info with bold formatting and emojis
-    streak_text = f"**Meals: {stats.count}** 🍗 | **Streak: {stats.streak_current}** 🔥 (Best: {stats.streak_best})"
-    embed.add_field(name="\u200b", value=streak_text, inline=False)
-
-    # Humor line with littlechef emoji (or fallback chef emoji)
-    chef_prefix = littlechef_emoji if littlechef_emoji else "👨‍🍳"
-    humor_text = f"{chef_prefix} *{humor_line}*"
-    embed.add_field(name="\u200b", value=humor_text, inline=False)
-
     return embed
+
+
+def build_humor_message(
+    humor_line: str,
+    littlechef_emoji: Optional[str] = None,
+) -> str:
+    """Build the humor message content to appear above the embed card."""
+    chef_prefix = littlechef_emoji if littlechef_emoji else "👨‍🍳"
+    return f"{chef_prefix} *{humor_line}*"
 
 
 class MealModal(discord.ui.Modal, title="Log a Meal"):
@@ -288,17 +294,22 @@ class MealCog(commands.Cog):
                 if emoji:
                     littlechef_emoji = str(emoji)
 
+            # Build humor message (appears above the card)
+            humor_message = build_humor_message(
+                humor_line=humor_line,
+                littlechef_emoji=littlechef_emoji,
+            )
+
+            # Build the embed card
             embed = build_meal_embed(
                 dish_name=dish_name or "Untitled Dish",
-                humor_line=humor_line,
                 note=note,
                 photo_url=photo.url,
                 user=interaction.user,
                 stats=stats,
-                littlechef_emoji=littlechef_emoji,
             )
 
-            await channel.send(embed=embed)
+            await channel.send(content=humor_message, embed=embed)
 
             # Acknowledge the modal submission
             await interaction.followup.send(
