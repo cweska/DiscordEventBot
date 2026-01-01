@@ -98,6 +98,7 @@ async def test_handle_modal_submission_posts_embed(tmp_path: Path):
         humor_loader=humor,
         stats_manager=stats,
         meal_channel_id=channel.id,
+        food_fight_manager=None,  # Not needed for this test
     )
 
     await cog.handle_modal_submission(

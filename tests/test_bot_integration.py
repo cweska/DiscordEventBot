@@ -28,9 +28,18 @@ def mock_bot(mock_config):
         bot = EventBot.__new__(EventBot)
         # Create a real ForumManager instance for event_posts dict
         from forum_manager import ForumManager
+        from food_fight_manager import FoodFightManager
+        from pathlib import Path
+        import tempfile
+        
         bot.forum_manager = ForumManager(987654321)
         bot.archive_scheduler = MagicMock()
         bot.event_handler = MagicMock()
+        # Initialize food_fight_manager with a temp file (don't need to load for these tests)
+        temp_file = Path(tempfile.mktemp(suffix='.json'))
+        bot.food_fight_manager = FoodFightManager(temp_file)
+        # Mock load to avoid file I/O in tests
+        bot.food_fight_manager.load = AsyncMock()
         # Mock guilds as a property
         type(bot).guilds = property(lambda self: [MagicMock()])
         # Mock user as a property

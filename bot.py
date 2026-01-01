@@ -10,6 +10,8 @@ from event_handler import EventHandler
 from calendar_manager import CalendarManager
 from reminder_scheduler import ReminderScheduler
 from meal_cog import MealCog, HumorLoader, StatsManager
+from food_fight_manager import FoodFightManager
+from food_fight_cog import FoodFightCog
 from pathlib import Path
 
 # Configure logging
@@ -35,6 +37,8 @@ class EventBot(commands.Bot):
         intents = discord.Intents.default()
         intents.guilds = True
         intents.guild_scheduled_events = True
+        intents.message_content = True
+        intents.reactions = True
         
         super().__init__(command_prefix='!', intents=intents)
         
@@ -69,17 +73,28 @@ class EventBot(commands.Bot):
         self.meal_channel_id = 1440141058410283039
         self.humor_loader = HumorLoader(Path("data/humor.txt"))
         self.stats_manager = StatsManager(Path("data/stats.json"))
+        
+        # Food fight manager (JSON persistence)
+        self.food_fight_manager = FoodFightManager(Path("data/food_fights.json"))
     
     async def setup_hook(self):
         """Called when the bot is starting up."""
         logger.info("Bot is starting up...")
         await self.stats_manager.load()
+        await self.food_fight_manager.load()
         await self.add_cog(
             MealCog(
                 self,
                 humor_loader=self.humor_loader,
                 stats_manager=self.stats_manager,
                 meal_channel_id=self.meal_channel_id,
+                food_fight_manager=self.food_fight_manager,
+            )
+        )
+        await self.add_cog(
+            FoodFightCog(
+                self,
+                food_fight_manager=self.food_fight_manager,
             )
         )
         # Sync application commands so slash commands like /cooked appear

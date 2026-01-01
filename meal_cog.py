@@ -225,11 +225,13 @@ class MealCog(commands.Cog):
         humor_loader: HumorLoader,
         stats_manager: StatsManager,
         meal_channel_id: int,
+        food_fight_manager=None,
     ):
         self.bot = bot
         self.humor_loader = humor_loader
         self.stats_manager = stats_manager
         self.meal_channel_id = meal_channel_id
+        self.food_fight_manager = food_fight_manager
 
     @staticmethod
     def _is_image_attachment(attachment: discord.Attachment) -> bool:
@@ -285,10 +287,22 @@ class MealCog(commands.Cog):
                 return
 
             humor_line = self.humor_loader.get_random_line()
+            now = discord.utils.utcnow()
             stats = await self.stats_manager.record_meal(
                 user_id=interaction.user.id,
-                now=discord.utils.utcnow(),
+                now=now,
             )
+            
+            # Record dish in active food fights
+            if self.food_fight_manager:
+                try:
+                    await self.food_fight_manager.record_dish(
+                        user_id=interaction.user.id,
+                        dish_time=now,
+                    )
+                except Exception as e:
+                    logger.error(f"Error recording dish in food fight: {e}", exc_info=True)
+                    # Don't fail the meal logging if food fight recording fails
 
             # Try to find the :littlechef: custom emoji from the guild
             littlechef_emoji: Optional[str] = None
