@@ -9,6 +9,7 @@ A Discord bot that automatically creates forum posts for scheduled events, updat
 - **Automatic Post Closure**: Closes forum posts 24 hours after events complete (configurable), moving them to "Older Posts"
 - **Event Reminders**: Sends reminder messages at configurable times before events start (optional)
 - **Event Lifecycle Management**: Handles event creation, updates, deletion, and participant changes
+- **Food Fight Tracking**: Track team-based food competitions where teams compete by logging dishes via `/cooked` command
 
 ## Setup
 
@@ -63,7 +64,10 @@ A Discord bot that automatically creates forum posts for scheduled events, updat
      - Manage Messages
      - Manage Threads
      - Read Message History
+     - Read Message Content (required for food fights)
    - Copy the generated URL and open it in your browser to invite the bot
+
+**Note:** For food fight features, ensure the bot has "Read Message Content" intent enabled in the Discord Developer Portal under Bot > Privileged Gateway Intents.
 
 ### Running the Bot
 
@@ -136,6 +140,56 @@ You can combine multiple times: `REMINDER_TIMES=10m,1h,12h,24h,1d`
 
 **Note:** Reminders are optional. If `REMINDER_CHANNEL_ID` is not set, reminders are disabled. If `REMINDER_CHANNEL_ID` is set but `REMINDER_TIMES` is empty or invalid, reminders will be disabled and a warning will be logged.
 
+### Food Fights
+
+The bot can track "food fights" - team-based competitions where participants log dishes using the `/cooked` command. Teams are assigned based on emoji reactions to an announcement message.
+
+**Setting Up a Food Fight:**
+
+1. Post an announcement message in your announcements channel
+2. Have participants react to the message with team emojis (e.g., 🐕 for Team Dog, 🐈 for Team Cat)
+3. Use `/foodfight-start` to begin tracking:
+   ```
+   /foodfight-start message_id:123456789012345678 channel:#announcements emojis:🐕,🐈
+   ```
+   - `message_id`: The ID of the announcement message (right-click message → Copy ID)
+   - `channel`: The channel where the announcement is posted (optional if using command in same channel)
+   - `emojis`: Comma-separated list of valid team emojis
+
+**How It Works:**
+- The bot tracks which users reacted with which team emojis
+- If a user reacted with multiple team emojis, one team is randomly selected
+- All dishes logged via `/cooked` by participants are automatically counted for their team
+- Only dishes logged **after** the announcement message was posted are counted
+- Multiple food fights can be active simultaneously
+
+**Ending a Food Fight:**
+
+Use `/foodfight-end` to conclude a food fight and see results:
+```
+/foodfight-end fight_id:fight_123456789012345678
+```
+
+The bot will display:
+- Final team standings with dish counts
+- Individual participant breakdowns
+- Winner announcement
+
+**Adding Retroactive Food Fights:**
+
+If you want to add a food fight that started before the bot was set up, use `/foodfight-add-retroactive`:
+```
+/foodfight-add-retroactive message_id:123456789012345678 channel:#announcements emojis::dog:,:cat:
+```
+
+This command:
+- Fetches the announcement message
+- Uses the message's creation timestamp as the start time
+- Reads all reactions and assigns participants to teams
+- Allows tracking dishes logged after the original announcement
+
+**Admin Only:** All food fight commands require administrator permissions.
+
 ## How It Works
 
 1. **Event Creation**: When a scheduled event is created, the bot automatically creates a forum post with:
@@ -166,6 +220,12 @@ DiscordEventBot/
 ├── event_handler.py       # Scheduled event listeners
 ├── forum_manager.py       # Forum post creation/updates
 ├── archive_scheduler.py   # Archive timing logic
+├── meal_cog.py            # Meal logging via /cooked command
+├── food_fight_manager.py  # Food fight state management
+├── food_fight_cog.py      # Food fight commands
+├── data/                  # Persistent data (stats, food fights)
+│   ├── stats.json         # Meal statistics
+│   └── food_fights.json   # Food fight data
 ├── requirements.txt       # Python dependencies
 ├── .env                   # Environment variables (not in git)
 ├── .gitignore            # Git ignore rules
@@ -195,6 +255,12 @@ The bot logs all operations to both `bot.log` and the console. Logs include:
 ### Participant list not updating
 - Ensure the bot has permission to view scheduled event subscribers
 - Check that the bot has the `guild_scheduled_events` intent enabled
+
+### Food fight commands not working
+- Verify you have administrator permissions in the server
+- Ensure the bot has "Read Message Content" intent enabled
+- Check that the message ID is correct and the message exists
+- Verify the bot has permission to read messages in the channel
 
 ## License
 
