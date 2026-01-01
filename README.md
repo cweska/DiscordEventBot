@@ -67,7 +67,15 @@ A Discord bot that automatically creates forum posts for scheduled events, updat
      - Read Message Content (required for food fights)
    - Copy the generated URL and open it in your browser to invite the bot
 
-**Note:** For food fight features, ensure the bot has "Read Message Content" intent enabled in the Discord Developer Portal under Bot > Privileged Gateway Intents.
+**Important:** For food fight features, you **must** enable the "MESSAGE CONTENT INTENT" in the Discord Developer Portal:
+1. Go to https://discord.com/developers/applications
+2. Select your bot application
+3. Go to the "Bot" section (left sidebar)
+4. Scroll down to "Privileged Gateway Intents"
+5. Enable "MESSAGE CONTENT INTENT"
+6. Save changes
+
+**Without this enabled, the bot will fail to start with an error about privileged intents.**
 
 ### Running the Bot
 
@@ -258,9 +266,16 @@ The bot logs all operations to both `bot.log` and the console. Logs include:
 
 ### Food fight commands not working
 - Verify you have administrator permissions in the server
-- Ensure the bot has "Read Message Content" intent enabled
+- Ensure the bot has "MESSAGE CONTENT INTENT" enabled in the Discord Developer Portal (Bot > Privileged Gateway Intents)
 - Check that the message ID is correct and the message exists
 - Verify the bot has permission to read messages in the channel
+
+### Bot fails to start with "privileged intents" error
+- Go to https://discord.com/developers/applications
+- Select your bot application
+- Go to Bot > Privileged Gateway Intents
+- Enable "MESSAGE CONTENT INTENT"
+- Save changes and restart the bot
 
 ## License
 
