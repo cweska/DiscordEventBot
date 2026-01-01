@@ -98,6 +98,12 @@ class EventBot(commands.Bot):
             )
         )
         # Sync application commands so slash commands like /cooked appear
+        # Log commands in tree before syncing
+        commands_in_tree = list(self.tree.walk_commands())
+        logger.info(f"Commands in tree before sync: {len(commands_in_tree)}")
+        for cmd in commands_in_tree:
+            logger.info(f"  - {cmd.name}")
+        
         if Config.COMMAND_GUILD_ID:
             guild = discord.Object(id=Config.COMMAND_GUILD_ID)
             synced = await self.tree.sync(guild=guild)
