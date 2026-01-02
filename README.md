@@ -156,9 +156,9 @@ The bot can track "food fights" - team-based competitions where participants log
 
 1. Post an announcement message in your announcements channel
 2. Have participants react to the message with team emojis (e.g., 🐕 for Team Dog, 🐈 for Team Cat)
-3. Use `/foodfight-start` to begin tracking:
+3. Use `/foodfight_start` to begin tracking:
    ```
-   /foodfight-start message_id:123456789012345678 channel:#announcements emojis:🐕,🐈
+   /foodfight_start message_id:123456789012345678 channel:#announcements emojis:🐕,🐈
    ```
    - `message_id`: The ID of the announcement message (right-click message → Copy ID)
    - `channel`: The channel where the announcement is posted (optional if using command in same channel)
@@ -173,9 +173,9 @@ The bot can track "food fights" - team-based competitions where participants log
 
 **Ending a Food Fight:**
 
-Use `/foodfight-end` to conclude a food fight and see results:
+Use `/foodfight_end` to conclude a food fight and see results:
 ```
-/foodfight-end fight_id:fight_123456789012345678
+/foodfight_end fight_id:fight_123456789012345678
 ```
 
 The bot will display:
@@ -185,9 +185,9 @@ The bot will display:
 
 **Adding Retroactive Food Fights:**
 
-If you want to add a food fight that started before the bot was set up, use `/foodfight-add-retroactive`:
+If you want to add a food fight that started before the bot was set up, use `/foodfight_add_retroactive`:
 ```
-/foodfight-add-retroactive message_id:123456789012345678 channel:#announcements emojis::dog:,:cat:
+/foodfight_add_retroactive message_id:123456789012345678 channel:#announcements emojis::dog:,:cat:
 ```
 
 This command:

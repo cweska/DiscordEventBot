@@ -37,7 +37,7 @@ class FoodFightCog(commands.Cog):
         """Called when the cog is loaded."""
         logger.info("FoodFightCog loaded")
 
-    @app_commands.command(name="foodfight-start", description="Start tracking a food fight")
+    @app_commands.command(name="foodfight_start", description="Start tracking a food fight")
     @app_commands.describe(
         message_id="The message ID of the announcement",
         channel="The channel where the announcement is (optional, uses current channel if not provided)",
@@ -218,7 +218,7 @@ class FoodFightCog(commands.Cog):
                     ephemeral=True,
                 )
 
-    @app_commands.command(name="foodfight-end", description="End a food fight and show results")
+    @app_commands.command(name="foodfight_end", description="End a food fight and show results")
     @app_commands.describe(fight_id="The fight ID (e.g., fight_123456789)")
     async def foodfight_end(
         self,
@@ -357,7 +357,7 @@ class FoodFightCog(commands.Cog):
         # For now, we'll stick with the initial snapshot approach
         pass
 
-    @app_commands.command(name="foodfight-add-retroactive", description="Add a retroactive food fight (admin only)")
+    @app_commands.command(name="foodfight_add_retroactive", description="Add a retroactive food fight (admin only)")
     @app_commands.describe(
         message_id="The message ID of the announcement",
         channel="The channel where the announcement is",
